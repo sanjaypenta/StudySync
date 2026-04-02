@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { fetchTodosRange, prioritizeTodos, type Todo } from "@/lib/api";
+import {
+  fetchTodosRange,
+  postAutoRescue,
+  prioritizeTodos,
+  type Todo,
+} from "@/lib/api";
 import { SortableDaySection } from "@/components/SortableDaySection";
 import { BurnoutPanel } from "@/components/BurnoutPanel";
 import { FocusSessionBar } from "@/components/FocusSessionBar";
 import { useAuth } from "@/context/AuthContext";
+import { useRewards } from "@/context/RewardContext";
+import { useHud } from "@/context/HudContext";
 
 function addDaysYmd(ymd: string, days: number): string {
   const d = new Date(ymd + "T12:00:00Z");
@@ -49,12 +56,16 @@ const pillars = [
 
 export function Dashboard() {
   const { user, logout } = useAuth();
+  const { push } = useRewards();
+  const { refresh: refreshHud } = useHud();
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const rangeFrom = useMemo(() => addDaysYmd(today, -28), [today]);
   const rangeTo = useMemo(() => addDaysYmd(today, 7), [today]);
 
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rescuing, setRescuing] = useState(false);
 
   const mergeDay = useCallback((date: string, dayTodos: Todo[]) => {
     setTodos((prev) => {
@@ -67,8 +78,8 @@ export function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      await prioritizeTodos(today, rangeTo);
-      const list = await fetchTodosRange(today, rangeTo);
+      await prioritizeTodos(rangeFrom, rangeTo);
+      const list = await fetchTodosRange(rangeFrom, rangeTo);
       setTodos(list);
     } catch (e) {
       setError(
@@ -77,7 +88,7 @@ export function Dashboard() {
           : "Could not load your plan. Is MongoDB running?"
       );
       try {
-        const list = await fetchTodosRange(today, rangeTo);
+        const list = await fetchTodosRange(rangeFrom, rangeTo);
         setTodos(list);
       } catch {
         setTodos([]);
@@ -85,7 +96,7 @@ export function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [today, rangeTo]);
+  }, [rangeFrom, rangeTo]);
 
   useEffect(() => {
     void load();
@@ -93,6 +104,31 @@ export function Dashboard() {
 
   const byDate = useMemo(() => groupByDate(todos), [todos]);
   const dates = useMemo(() => Array.from(byDate.keys()).sort(), [byDate]);
+
+  const hasOverduePending = useMemo(
+    () =>
+      todos.some(
+        (t) => t.status === "pending" && t.date.localeCompare(today) < 0
+      ),
+    [todos, today]
+  );
+
+  async function runRescue() {
+    setRescuing(true);
+    try {
+      const r = await postAutoRescue(21);
+      push({
+        title: r.toastTitle,
+        subtitle: r.moved > 0 ? r.toastSubtitle : r.message,
+      });
+      await load();
+      void refreshHud();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Rescue failed");
+    } finally {
+      setRescuing(false);
+    }
+  }
 
   return (
     <div>
@@ -138,6 +174,26 @@ export function Dashboard() {
           </Link>
         ))}
       </div>
+
+      {hasOverduePending && (
+        <div
+          className="mt-6 rounded-2xl border border-cyan-500/35 bg-cyan-950/30 px-4 py-3 flex flex-wrap items-center justify-between gap-3"
+          role="status"
+        >
+          <p className="text-sm text-cyan-100/95">
+            Some tasks stayed in the past — no stress. We can redistribute them
+            onto today and the days ahead.
+          </p>
+          <button
+            type="button"
+            disabled={rescuing}
+            onClick={() => void runRescue()}
+            className="shrink-0 rounded-xl bg-gradient-to-r from-cyan-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 hover:opacity-95"
+          >
+            {rescuing ? "Adjusting…" : "Adjust my plan"}
+          </button>
+        </div>
+      )}
 
       <div className="mt-8 space-y-4">
         <FocusSessionBar />

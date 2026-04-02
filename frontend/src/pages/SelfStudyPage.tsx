@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   endStudySession,
   fetchActiveSession,
@@ -8,9 +8,16 @@ import {
   startStudySession,
   type Todo,
 } from "@/lib/api";
+import { SessionMoodGate } from "@/components/SessionMoodGate";
 import { useRewards } from "@/context/RewardContext";
 import { useHud } from "@/context/HudContext";
 import { pushRewardFromApi } from "@/lib/rewardHelpers";
+import {
+  sortTodosForMood,
+  type BreakPlan,
+  type SessionMood,
+} from "@/lib/sessionBreakPolicy";
+import { useFocusBreaks } from "@/hooks/useFocusBreaks";
 
 function addDaysYmd(ymd: string, days: number): string {
   const d = new Date(ymd + "T12:00:00Z");
@@ -27,7 +34,7 @@ function formatElapsed(ms: number): string {
 
 export function SelfStudyPage() {
   const { push } = useRewards();
-  const { refresh } = useHud();
+  const { refresh, state: hudState } = useHud();
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const rangeTo = useMemo(() => addDaysYmd(today, 7), [today]);
 
@@ -35,11 +42,17 @@ export function SelfStudyPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
+  const [studyMood, setStudyMood] = useState<SessionMood | null>(null);
+  const [moodGateOpen, setMoodGateOpen] = useState(false);
+  const [pendingTodoId, setPendingTodoId] = useState<string | null>(null);
+
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [activeTodoId, setActiveTodoId] = useState<string | null>(null);
   const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [confirmSwitch, setConfirmSwitch] = useState<string | null>(null);
+  const [breakBanner, setBreakBanner] = useState<BreakPlan | null>(null);
+  const restoredSessionRef = useRef(false);
 
   const load = useCallback(
     async (opts?: { skipPrioritize?: boolean }) => {
@@ -69,9 +82,11 @@ export function SelfStudyPage() {
     void (async () => {
       const s = await fetchActiveSession();
       if (cancelled || !s) return;
+      restoredSessionRef.current = true;
       setSessionId(s.id);
       setStartedAtMs(new Date(s.started_at).getTime());
       setActiveTodoId(s.todo_ids[0] ?? null);
+      setStudyMood(s.session_mood ?? "normal");
     })();
     return () => {
       cancelled = true;
@@ -93,16 +108,62 @@ export function SelfStudyPage() {
   const elapsed =
     sessionId && startedAtMs ? Math.max(0, now - startedAtMs) : 0;
 
-  async function beginFocus(todoId: string) {
+  const energyPercent = hudState?.energyPercent ?? null;
+  const effectiveMood: SessionMood | null =
+    studyMood ?? (sessionId ? "normal" : null);
+
+  const onBreakNudge = useCallback(
+    (plan: BreakPlan) => {
+      push({
+        title: plan.headline,
+        subtitle: `${plan.body} ${plan.energyLine}`,
+      });
+      setBreakBanner(plan);
+    },
+    [push]
+  );
+
+  const { resetSegment } = useFocusBreaks({
+    active: Boolean(sessionId && startedAtMs && effectiveMood),
+    mood: effectiveMood,
+    energyPercent,
+    nowMs: now,
+    sessionAnchorMs: startedAtMs,
+    onNudge: onBreakNudge,
+  });
+
+  useEffect(() => {
+    if (!sessionId || !startedAtMs || !restoredSessionRef.current) return;
+    restoredSessionRef.current = false;
+    resetSegment();
+  }, [sessionId, startedAtMs, resetSegment]);
+
+  const displayTodos = useMemo(
+    () => sortTodosForMood(todos, studyMood),
+    [todos, studyMood]
+  );
+
+  function openMoodGateForTodo(todoId: string) {
     if (sessionId && activeTodoId && activeTodoId !== todoId) {
       setConfirmSwitch(todoId);
       return;
     }
+    setPendingTodoId(todoId);
+    setMoodGateOpen(true);
+  }
+
+  async function startSessionWithMood(mood: SessionMood) {
+    const todoId = pendingTodoId;
+    setMoodGateOpen(false);
+    setPendingTodoId(null);
+    if (!todoId) return;
+    setStudyMood(mood);
     try {
-      const s = await startStudySession([todoId]);
+      const s = await startStudySession([todoId], { mood });
       setSessionId(s.id);
       setStartedAtMs(Date.now());
       setActiveTodoId(todoId);
+      setBreakBanner(null);
     } catch {
       setErr("Could not start focus session.");
     }
@@ -120,10 +181,12 @@ export function SelfStudyPage() {
       /* ignore */
     }
     try {
-      const s = await startStudySession([next]);
+      const m = studyMood ?? "normal";
+      const s = await startStudySession([next], { mood: m });
       setSessionId(s.id);
       setStartedAtMs(Date.now());
       setActiveTodoId(next);
+      setBreakBanner(null);
       void refresh();
     } catch {
       setErr("Could not start focus session.");
@@ -145,7 +208,9 @@ export function SelfStudyPage() {
         });
       }
       if (outcome === "completed" && activeTodoId) {
-        const { reward: r2 } = await patchTodo(activeTodoId, { status: "completed" });
+        const { reward: r2 } = await patchTodo(activeTodoId, {
+          status: "completed",
+        });
         pushRewardFromApi(push, r2);
       }
       void refresh();
@@ -155,20 +220,29 @@ export function SelfStudyPage() {
       setSessionId(null);
       setStartedAtMs(null);
       setActiveTodoId(null);
+      setBreakBanner(null);
       void load({ skipPrioritize: true });
     }
   }
 
-  const pending = todos;
-
   return (
     <div className="space-y-8">
+      <SessionMoodGate
+        open={moodGateOpen}
+        onPick={(m) => void startSessionWithMood(m)}
+        onClose={() => {
+          setMoodGateOpen(false);
+          setPendingTodoId(null);
+        }}
+      />
+
       <div>
         <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 to-violet-200">
           Self-study arena
         </h1>
         <p className="mt-1 text-sm text-violet-300/70">
-          One focus timer at a time. Complete a session to earn XP and a coach tip.
+          One focus timer at a time. Pick how you feel — we tune breaks from your
+          energy bar and task order.
         </p>
       </div>
 
@@ -201,7 +275,10 @@ export function SelfStudyPage() {
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded-2xl bg-violet-950/40" />
+            <div
+              key={i}
+              className="h-16 animate-pulse rounded-2xl bg-violet-950/40"
+            />
           ))}
         </div>
       ) : null}
@@ -212,7 +289,7 @@ export function SelfStudyPage() {
         </p>
       ) : null}
 
-      {!loading && !pending.length ? (
+      {!loading && !displayTodos.length ? (
         <div className="rounded-2xl border border-dashed border-violet-500/30 bg-violet-950/10 px-6 py-12 text-center">
           <p className="text-violet-200">No pending quests in the next week.</p>
           <p className="mt-2 text-sm text-violet-400/80">
@@ -221,8 +298,34 @@ export function SelfStudyPage() {
         </div>
       ) : null}
 
+      {breakBanner && sessionId ? (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-950/25 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-amber-100">
+              {breakBanner.headline}
+            </p>
+            <p className="text-xs text-amber-200/80 mt-1">
+              Suggested break: {breakBanner.breakSuggestionMinutes} min
+              {breakBanner.mandatoryBreakMinutes != null
+                ? ` (aim for at least ${breakBanner.mandatoryBreakMinutes} min)`
+                : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setBreakBanner(null);
+              resetSegment();
+            }}
+            className="rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-zinc-900"
+          >
+            Continue sprint
+          </button>
+        </div>
+      ) : null}
+
       <ul className="space-y-3">
-        {pending.map((t) => {
+        {displayTodos.map((t) => {
           const isActive = activeTodoId === t.id && sessionId;
           return (
             <li
@@ -231,7 +334,9 @@ export function SelfStudyPage() {
             >
               <div>
                 <p className="font-medium text-violet-50">{t.task_title}</p>
-                <p className="text-xs text-violet-400">{t.subject} · {t.date}</p>
+                <p className="text-xs text-violet-400">
+                  {t.subject} · {t.date} · {t.hours}h
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {isActive ? (
@@ -243,7 +348,7 @@ export function SelfStudyPage() {
                   <button
                     type="button"
                     className="rounded-xl bg-gradient-to-r from-cyan-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white"
-                    onClick={() => void beginFocus(t.id)}
+                    onClick={() => openMoodGateForTodo(t.id)}
                   >
                     Start focus
                   </button>

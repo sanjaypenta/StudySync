@@ -5,11 +5,32 @@ import { authMiddleware } from "../middleware/authMiddleware.js";
 import { recordMeaningfulActivity } from "../services/gamification.js";
 import { applyDailyPrioritization } from "../services/dailyPrioritize.js";
 import { BurnoutDaily } from "../models/BurnoutDaily.js";
+import { runAutoRescue } from "../services/autoRescue.js";
 
 export const todosRouter = Router();
 todosRouter.use(authMiddleware);
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+todosRouter.post("/rescue", async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      res.status(503).json({ error: "Database not connected" });
+      return;
+    }
+    const userId = req.userId!;
+    const rawH = req.body?.horizonDays;
+    const horizonDays =
+      typeof rawH === "number" && Number.isFinite(rawH)
+        ? rawH
+        : 14;
+    const result = await runAutoRescue(userId, horizonDays);
+    res.json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Rescue failed" });
+  }
+});
 
 todosRouter.post("/prioritize", async (req, res) => {
   try {

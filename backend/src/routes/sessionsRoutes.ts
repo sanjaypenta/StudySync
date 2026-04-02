@@ -36,6 +36,7 @@ sessionsRouter.get("/active", async (req, res) => {
         started_at: doc.started_at.toISOString(),
         todo_ids: doc.todo_ids,
         outcome: doc.outcome,
+        session_mood: doc.session_mood ?? null,
       },
     });
   } catch (e) {
@@ -55,12 +56,19 @@ sessionsRouter.post("/start", async (req, res) => {
       ? (req.body.todoIds as unknown[]).map((x) => String(x))
       : [];
 
+    const rawMood = req.body?.mood;
+    const session_mood =
+      rawMood === "tired" || rawMood === "normal" || rawMood === "motivated"
+        ? rawMood
+        : undefined;
+
     const doc = await StudySession.create({
       user_id: userId,
       started_at: new Date(),
       ended_at: null,
       todo_ids: todoIds,
       outcome: "pending",
+      ...(session_mood ? { session_mood } : {}),
     });
 
     res.status(201).json({

@@ -7,6 +7,7 @@ import {
   fetchTodosRange,
   generatePlan,
   patchTodo,
+  postAutoRescue,
   type GeneratePlanMeta,
   type GoalType,
   type PlanDay,
@@ -18,17 +19,21 @@ import {
   getMonthGrid,
   monthRange,
   gridDateOptions,
+  addDaysYmd,
+  minYmd,
 } from "./calendarUtils";
 import { GoalModal } from "./components/GoalModal";
 import { PlanPreview } from "./components/PlanPreview";
 import { DayDetails } from "./components/DayDetails";
 import { subjectChipClass } from "@/lib/subjectColors";
 import { useHud } from "@/context/HudContext";
+import { useRewards } from "@/context/RewardContext";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export function CalendarPage() {
   const { refresh: refreshHud } = useHud();
+  const { push } = useRewards();
   const today = useMemo(() => toYmd(new Date()), []);
   const [view, setView] = useState(() => {
     const n = new Date();
@@ -49,22 +54,47 @@ export function CalendarPage() {
 
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loadingTodos, setLoadingTodos] = useState(true);
+  const [rescuing, setRescuing] = useState(false);
 
   const loadTodos = useCallback(async () => {
     setLoadingTodos(true);
     try {
-      const list = await fetchTodosRange(from, to);
+      const fetchFrom = minYmd(from, addDaysYmd(today, -90));
+      const list = await fetchTodosRange(fetchFrom, to);
       setTodos(list);
     } catch {
       setTodos([]);
     } finally {
       setLoadingTodos(false);
     }
-  }, [from, to]);
+  }, [from, to, today]);
 
   useEffect(() => {
     void loadTodos();
   }, [loadTodos]);
+
+  const hasOverduePending = useMemo(
+    () =>
+      todos.some(
+        (t) => t.status === "pending" && t.date.localeCompare(today) < 0
+      ),
+    [todos, today]
+  );
+
+  async function runRescue() {
+    setRescuing(true);
+    try {
+      const r = await postAutoRescue(21);
+      push({
+        title: r.toastTitle,
+        subtitle: r.moved > 0 ? r.toastSubtitle : r.message,
+      });
+      await loadTodos();
+      void refreshHud();
+    } finally {
+      setRescuing(false);
+    }
+  }
 
   const todosByDate = useMemo(() => {
     const m = new Map<string, Todo[]>();
@@ -278,6 +308,16 @@ export function CalendarPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+            {hasOverduePending ? (
+              <button
+                type="button"
+                disabled={rescuing}
+                onClick={() => void runRescue()}
+                className="rounded-xl border border-cyan-300 bg-cyan-50 px-4 py-2 text-sm font-medium text-cyan-900 hover:bg-cyan-100 transition-colors disabled:opacity-50"
+              >
+                {rescuing ? "Adjusting…" : "Rescue overdue"}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => setSelectedDate(today)}

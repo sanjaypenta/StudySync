@@ -1,4 +1,5 @@
 import { getToken } from "./authStorage";
+import type { SessionMood } from "./sessionBreakPolicy";
 import type { BurnoutLevel, StudyStyle, UserProfile } from "./profile";
 
 export function authHeaders(): HeadersInit {
@@ -324,6 +325,38 @@ export async function rebalanceTodos(
   return parsed.todos;
 }
 
+export type AutoRescueResponse = {
+  ok: boolean;
+  moved: number;
+  summary: {
+    fromDates: string[];
+    toRange: [string, string] | null;
+  };
+  message: string;
+  toastTitle: string;
+  toastSubtitle: string;
+};
+
+export async function postAutoRescue(horizonDays = 14): Promise<AutoRescueResponse> {
+  const res = await fetch("/api/todos/rescue", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ horizonDays }),
+  });
+  const raw = await res.text();
+  let parsed: AutoRescueResponse & { error?: string } = {} as AutoRescueResponse;
+  try {
+    parsed = JSON.parse(raw) as AutoRescueResponse & { error?: string };
+  } catch {
+    if (!res.ok) throw new Error("Rescue failed");
+    throw new Error("Invalid response");
+  }
+  if (!res.ok) {
+    throw new Error(parsed.error ?? "Rescue failed");
+  }
+  return parsed;
+}
+
 export async function prioritizeTodos(
   from: string,
   to: string
@@ -393,14 +426,20 @@ export async function deleteTodo(id: string): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete");
 }
 
-export async function startStudySession(todoIds: string[]): Promise<{
+export async function startStudySession(
+  todoIds: string[],
+  options?: { mood?: SessionMood }
+): Promise<{
   id: string;
   started_at: string;
 }> {
   const res = await fetch("/api/sessions/start", {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({ todoIds }),
+    body: JSON.stringify({
+      todoIds,
+      ...(options?.mood ? { mood: options.mood } : {}),
+    }),
   });
   if (!res.ok) throw new Error("Could not start session");
   const data = (await res.json()) as {
@@ -408,6 +447,8 @@ export async function startStudySession(todoIds: string[]): Promise<{
   };
   return data.session;
 }
+
+export type { SessionMood } from "./sessionBreakPolicy";
 
 export async function endStudySession(
   id: string,
@@ -432,6 +473,7 @@ export async function fetchActiveSession(): Promise<{
   id: string;
   started_at: string;
   todo_ids: string[];
+  session_mood: SessionMood | null;
 } | null> {
   const res = await fetch("/api/sessions/active", { headers: authHeaders() });
   if (!res.ok) return null;
@@ -440,6 +482,7 @@ export async function fetchActiveSession(): Promise<{
       id: string;
       started_at: string;
       todo_ids: string[];
+      session_mood: SessionMood | null;
     } | null;
   };
   return data.session;

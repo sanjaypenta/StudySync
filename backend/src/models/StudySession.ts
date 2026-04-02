@@ -2,12 +2,16 @@ import mongoose, { Schema, type Document } from "mongoose";
 
 export type SessionOutcome = "completed" | "skipped" | "abandoned" | "pending";
 
+export type SessionMood = "tired" | "normal" | "motivated";
+
 export interface IStudySession extends Document {
   user_id: string;
   started_at: Date;
   ended_at: Date | null;
   todo_ids: string[];
   outcome: SessionOutcome;
+  /** Optional check-in at session start */
+  session_mood?: SessionMood | null;
 }
 
 const StudySessionSchema = new Schema<IStudySession>(
@@ -20,6 +24,11 @@ const StudySessionSchema = new Schema<IStudySession>(
       type: String,
       enum: ["completed", "skipped", "abandoned", "pending"],
       default: "pending",
+    },
+    session_mood: {
+      type: String,
+      enum: ["tired", "normal", "motivated"],
+      required: false,
     },
   },
   { timestamps: true }

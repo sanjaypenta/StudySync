@@ -32,6 +32,16 @@ export function getMonthGrid(year: number, month: number): (string | null)[][] {
   return rows;
 }
 
+export function addDaysYmd(ymd: string, days: number): string {
+  const d = new Date(ymd + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export function minYmd(a: string, b: string): string {
+  return a < b ? a : b;
+}
+
 export function monthRange(year: number, month: number): { from: string; to: string } {
   const from = toYmd(new Date(year, month, 1));
   const to = toYmd(new Date(year, month + 1, 0));
