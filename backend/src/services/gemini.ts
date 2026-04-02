@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { groqChat, groqConfigured } from "./groqClient.js";
 import {
   distributePlan,
   parseTopicLines,
@@ -234,15 +234,15 @@ export async function generatePlanWithGemini(
 
   const syllabusDeterministic = numbered.length >= 5;
 
-  if (!apiKey?.trim() || syllabusDeterministic) {
+  if (!groqConfigured() || syllabusDeterministic) {
     return fallback();
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: GEMINI_TEXT_MODEL });
-    const result = await model.generateContent(buildPrompt(scheduleInput));
-    const text = result.response.text();
+    const text = await groqChat(
+      buildPrompt(scheduleInput),
+      "You are an AI study planner. Return ONLY valid JSON array (no markdown, no code fences)."
+    );
     const jsonStr = extractJsonArray(text);
     if (!jsonStr) {
       return fallback();

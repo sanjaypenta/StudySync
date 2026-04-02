@@ -1,5 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GEMINI_TEXT_MODEL } from "../services/geminiModel.js";
+import { groqChat } from "../services/groqClient.js";
 import type { MCQ } from "./types.js";
 
 function extractJsonArray(text: string): string | null {
@@ -38,12 +37,9 @@ function normalizeMcq(raw: unknown): MCQ | null {
 export async function generateQuizMcqs(
   material: string,
   count: number,
-  apiKey: string | undefined
+  _apiKey: string | undefined  // kept for compatibility, Groq key comes from env
 ): Promise<MCQ[]> {
   const trimmed = material.trim();
-  if (!apiKey?.trim()) {
-    throw new Error("GEMINI_API_KEY is not configured");
-  }
   if (count < 1 || count > 30) {
     throw new Error("questionsCount must be between 1 and 30");
   }
@@ -65,12 +61,16 @@ ${slice}
 
 Return ONLY JSON array of ${count} objects.`;
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: GEMINI_TEXT_MODEL });
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
+  const text = await groqChat(
+    prompt,
+    "You are a quiz generator. Return only valid JSON arrays with no markdown or code fences."
+  );
+
   const jsonStr = extractJsonArray(text);
-  if (!jsonStr) throw new Error("Could not parse quiz JSON from AI");
+  if (!jsonStr)
+    throw new Error(
+      "Could not parse quiz JSON from AI — try reducing question count or adding more material."
+    );
   const parsed = JSON.parse(jsonStr) as unknown;
   if (!Array.isArray(parsed)) throw new Error("Quiz must be a JSON array");
 
@@ -83,7 +83,7 @@ Return ONLY JSON array of ${count} objects.`;
 
   if (out.length !== count) {
     throw new Error(
-      `Expected ${count} valid questions, got ${out.length}. Try again or adjust material.`
+      `Expected ${count} valid questions, got ${out.length}. Try again or reduce the question count.`
     );
   }
   return out;

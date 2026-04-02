@@ -1,5 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GEMINI_TEXT_MODEL } from "../services/geminiModel.js";
+import { groqChat, groqConfigured } from "../services/groqClient.js";
 import type { FeedbackPayload, MCQ } from "./types.js";
 
 function extractJsonObject(text: string): string | null {
@@ -15,14 +14,14 @@ export async function generateUserFeedback(
   quiz: MCQ[],
   userAnswers: Record<number, { answer: string }>,
   displayName: string,
-  apiKey: string | undefined
+  _apiKey: string | undefined  // kept for compatibility, Groq key comes from env
 ): Promise<FeedbackPayload> {
-  if (!apiKey?.trim()) {
+  if (!groqConfigured()) {
     return {
       score: "0/0",
       strengths: "No AI key configured.",
       weakness: "—",
-      tips: "Configure GEMINI_API_KEY.",
+      tips: "Configure GROQ_API_KEY in backend/.env.",
       mistakes: [],
     };
   }
@@ -60,42 +59,52 @@ Return ONLY valid JSON (no markdown). Shape:
 
 Include mistakes ONLY for questions they got wrong. If none wrong, use "mistakes": [].`;
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: GEMINI_TEXT_MODEL });
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
-  const jsonStr = extractJsonObject(text);
-  if (!jsonStr) {
+  try {
+    const text = await groqChat(
+      prompt,
+      "You are a supportive study coach. Return only valid JSON with no markdown or code fences."
+    );
+    const jsonStr = extractJsonObject(text);
+    if (!jsonStr) {
+      return {
+        score: "?",
+        strengths: "Could not parse AI feedback.",
+        weakness: "—",
+        tips: "—",
+        mistakes: [],
+      };
+    }
+
+    const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+    const mistakesRaw = Array.isArray(parsed.mistakes) ? parsed.mistakes : [];
+
+    const mistakes = mistakesRaw
+      .map((m) => {
+        if (!m || typeof m !== "object") return null;
+        const o = m as Record<string, unknown>;
+        return {
+          question: String(o.question ?? ""),
+          your_answer: String(o.your_answer ?? ""),
+          correct_answer: String(o.correct_answer ?? ""),
+          explanation: String(o.explanation ?? ""),
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null && x.question.length > 0);
+
+    return {
+      score: String(parsed.score ?? ""),
+      strengths: String(parsed.strengths ?? ""),
+      weakness: String(parsed.weakness ?? ""),
+      tips: String(parsed.tips ?? ""),
+      mistakes,
+    };
+  } catch {
     return {
       score: "?",
-      strengths: "Could not parse AI feedback.",
+      strengths: "AI feedback failed. Try again.",
       weakness: "—",
       tips: "—",
       mistakes: [],
     };
   }
-
-  const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
-  const mistakesRaw = Array.isArray(parsed.mistakes) ? parsed.mistakes : [];
-
-  const mistakes = mistakesRaw
-    .map((m) => {
-      if (!m || typeof m !== "object") return null;
-      const o = m as Record<string, unknown>;
-      return {
-        question: String(o.question ?? ""),
-        your_answer: String(o.your_answer ?? ""),
-        correct_answer: String(o.correct_answer ?? ""),
-        explanation: String(o.explanation ?? ""),
-      };
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null && x.question.length > 0);
-
-  return {
-    score: String(parsed.score ?? ""),
-    strengths: String(parsed.strengths ?? ""),
-    weakness: String(parsed.weakness ?? ""),
-    tips: String(parsed.tips ?? ""),
-    mistakes,
-  };
 }

@@ -1,9 +1,8 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import mongoose from "mongoose";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { groqChat, groqConfigured } from "../services/groqClient.js";
 import { UserProfileModel, type DayBlock } from "../models/UserProfileDoc.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
-import { GEMINI_TEXT_MODEL } from "../services/geminiModel.js";
 
 export const profileRouter = Router();
 profileRouter.use(authMiddleware);
@@ -155,9 +154,8 @@ profileRouter.post("/learner-summary", async (req, res) => {
       return;
     }
     const userId = req.userId!;
-    const key = process.env.GEMINI_API_KEY?.trim();
-    if (!key) {
-      res.status(503).json({ error: "AI summary not configured" });
+    if (!groqConfigured()) {
+      res.status(503).json({ error: "AI summary not configured — set GROQ_API_KEY in backend/.env" });
       return;
     }
     const doc = await UserProfileModel.findOne({ user_id: userId });
@@ -165,9 +163,6 @@ profileRouter.post("/learner-summary", async (req, res) => {
       res.status(404).json({ error: "Profile not found" });
       return;
     }
-    const gen = new GoogleGenerativeAI(key).getGenerativeModel({
-      model: GEMINI_TEXT_MODEL,
-    });
     const prompt = `Write a short "who you are as a learner" summary (3-4 sentences) for this student based on their onboarding profile. Be warm and specific. No markdown.
 Study mode: ${doc.studyMode}
 Daily study hours cap: ${doc.dailyStudyHoursLimit}
@@ -178,9 +173,8 @@ Stress factors: ${(doc.stressFactors ?? []).join(", ") || "none listed"}
 Preferred style: ${doc.preferredStudyStyle}
 Screen time: mobile ${doc.screenTimeMobileHours}h, laptop ${doc.screenTimeLaptopHours}h
 Interests: ${(doc.interests ?? []).join(", ") || "not specified"}`;
-    const r = await gen.generateContent(prompt);
-    const text = r.response.text()?.trim() ?? "";
-    doc.learnerSummary = text;
+    const text = await groqChat(prompt, "You are a warm student coach. Write a short, personalized learner summary. No markdown.");
+    doc.learnerSummary = text.trim();
     await doc.save();
     res.json({ profile: serialize(doc) });
   } catch (e) {

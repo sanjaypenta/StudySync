@@ -1,5 +1,4 @@
-﻿import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GEMINI_TEXT_MODEL } from "./geminiModel.js";
+import { groqChat, groqConfigured } from "./groqClient.js";
 
 export async function generateBurnoutSessionTip(input: {
   taskTitle: string;
@@ -9,11 +8,7 @@ export async function generateBurnoutSessionTip(input: {
   burnoutScore?: number;
   apiKey: string | undefined;
 }): Promise<string | null> {
-  const key = input.apiKey?.trim();
-  if (!key) return null;
-  const gen = new GoogleGenerativeAI(key).getGenerativeModel({
-    model: GEMINI_TEXT_MODEL,
-  });
+  if (!groqConfigured()) return null;
   const scoreLine =
     input.burnoutScore != null
       ? `Today's burnout score: ${input.burnoutScore}.`
@@ -24,7 +19,10 @@ Duration: about ${input.minutes} minutes.
 Their self-reported burnout tendency: ${input.burnoutLevel}.
 ${scoreLine}
 Reply with exactly 1-2 short sentences: one personalized tip to avoid burnout and stay consistent. No markdown, no greeting.`;
-  const r = await gen.generateContent(prompt);
-  const t = r.response.text()?.trim();
-  return t || null;
+  try {
+    const text = await groqChat(prompt, "You are a supportive study coach. Reply concisely with no markdown.");
+    return text.trim() || null;
+  } catch {
+    return null;
+  }
 }

@@ -1,9 +1,7 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { groqChat, groqConfigured } from "./groqClient.js";
 import { truncateContext } from "./contextMerge.js";
-import { GEMINI_TEXT_MODEL } from "./geminiModel.js";
 
 const MIN_MATERIAL_CHARS = 300;
-/** Budget for the extraction prompt (material slice). */
 const EXTRACTION_MATERIAL_MAX = 12000;
 const MAX_TOPICS = 20;
 
@@ -34,14 +32,15 @@ function normalizeExtracted(raw: unknown): string[] | null {
 }
 
 /**
- * Second Gemini call: outline topics from PDF/notes text. Returns null on skip or failure.
+ * Uses Groq/Llama to extract study outline topics from PDF/notes text.
+ * Returns null on skip or failure.
  */
 export async function extractTopicsFromMaterial(
   contextText: string,
-  apiKey: string | undefined
+  _apiKey: string | undefined  // kept for compatibility, Groq key comes from env
 ): Promise<string[] | null> {
   const trimmed = contextText.trim();
-  if (!apiKey?.trim() || trimmed.length < MIN_MATERIAL_CHARS) {
+  if (!groqConfigured() || trimmed.length < MIN_MATERIAL_CHARS) {
     return null;
   }
 
@@ -65,10 +64,7 @@ Return ONLY JSON in this form:
 ["Topic 1", "Topic 2"]`;
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: GEMINI_TEXT_MODEL });
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const text = await groqChat(prompt, "You are a study outline extractor. Return only valid JSON arrays.");
     const jsonStr = extractJsonArray(text);
     if (!jsonStr) return null;
     const parsed = JSON.parse(jsonStr) as unknown;
