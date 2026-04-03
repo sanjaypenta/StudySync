@@ -52,7 +52,7 @@ export function PlanPreview({
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <motion.button
             type="button"
-            className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -60,25 +60,25 @@ export function PlanPreview({
             aria-label="Close preview"
           />
           <motion.div
-            className="relative w-full max-w-2xl rounded-2xl bg-white text-zinc-900 shadow-2xl border border-zinc-200/80 max-h-[92vh] flex flex-col"
+            className="relative w-full max-w-2xl rounded-2xl bg-zinc-950/80 backdrop-blur-xl text-violet-100 shadow-2xl border border-violet-500/30 max-h-[92vh] flex flex-col"
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
             transition={{ type: "spring", damping: 24, stiffness: 300 }}
           >
-            <div className="p-5 sm:p-6 border-b border-zinc-100 shrink-0">
-              <h2 className="text-lg font-semibold text-zinc-900">
+            <div className="p-5 sm:p-6 border-b border-violet-500/20 shrink-0">
+              <h2 className="text-lg font-semibold text-transparent bg-clip-text bg-gradient-to-r from-violet-200 to-fuchsia-200">
                 Your study plan
               </h2>
-              <p className="text-sm text-zinc-500 mt-1">
+              <p className="text-sm text-violet-300/60 mt-1">
                 {editable
                   ? "Edit each day’s topic text and hours if needed, then confirm."
                   : "Review daily sessions below, then confirm to add them to your calendar."}
               </p>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-6 py-4">
-              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-6 py-4 style-scrollbar">
+              <h3 className="text-xs font-semibold text-violet-400/80 uppercase tracking-wide mb-3">
                 Daily sessions ({plan.length})
               </h3>
               <div className="space-y-2.5">
@@ -88,14 +88,14 @@ export function PlanPreview({
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: Math.min(i * 0.03, 0.4) }}
-                    className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-3.5"
+                    className="flex flex-col gap-2 rounded-xl border border-violet-500/20 bg-black/20 px-4 py-3.5 shadow-inner"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                      <p className="text-sm font-semibold text-zinc-900 tabular-nums shrink-0">
+                      <p className="text-sm font-semibold text-violet-200 tabular-nums shrink-0">
                         {day.date}
                       </p>
                       {editable ? (
-                        <label className="flex items-center gap-2 text-xs text-zinc-600 shrink-0">
+                        <label className="flex items-center gap-2 text-xs text-violet-400/70 shrink-0">
                           <span className="whitespace-nowrap">Hours</span>
                           <input
                             type="number"
@@ -111,7 +111,7 @@ export function PlanPreview({
                                 ),
                               })
                             }
-                            className="w-20 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm tabular-nums text-zinc-900"
+                            className="w-20 rounded-lg border border-violet-500/30 bg-black/40 px-2 py-1.5 text-sm tabular-nums text-violet-100 focus:outline-none focus:ring-1 focus:ring-violet-500/40 transition-colors"
                           />
                         </label>
                       ) : (
@@ -132,11 +132,11 @@ export function PlanPreview({
                           8,
                           Math.max(2, 1 + (day.task.match(/\n/g)?.length ?? 0))
                         )}
-                        className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 leading-relaxed resize-y min-h-[2.75rem]"
+                        className="w-full rounded-lg border border-violet-500/30 bg-black/40 px-3 py-2 text-sm text-violet-100 leading-relaxed resize-y min-h-[2.75rem] focus:outline-none focus:ring-1 focus:ring-violet-500/40 transition-colors"
                         placeholder="Topic or tasks for this day"
                       />
                     ) : (
-                      <p className="text-sm text-zinc-700 leading-relaxed break-words">
+                      <p className="text-sm text-violet-200/90 leading-relaxed break-words">
                         {day.task}
                       </p>
                     )}
@@ -145,16 +145,16 @@ export function PlanPreview({
               </div>
 
               {meta && (
-                <div className="mt-6 pt-4 border-t border-zinc-100">
-                  <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">
+                <div className="mt-6 pt-4 border-t border-violet-500/20">
+                  <p className="text-xs font-medium text-violet-400/80 uppercase tracking-wide mb-2">
                     Source details
                   </p>
-                  <div className="rounded-lg border border-zinc-100 bg-zinc-50/80 px-3 py-2 text-xs text-zinc-600 space-y-1">
+                  <div className="rounded-lg border border-violet-500/20 bg-black/20 px-3 py-2 text-xs text-violet-300/80 space-y-1 shadow-inner">
                     <p>
                       {meta.pdfUploaded ? (
                         <>
                           PDF:{" "}
-                          <span className="font-medium text-zinc-800">
+                          <span className="font-medium text-violet-200">
                             {meta.pdfCharsExtracted.toLocaleString()}
                           </span>{" "}
                           chars extracted
@@ -165,13 +165,13 @@ export function PlanPreview({
                     </p>
                     <p>
                       Context sent to planner:{" "}
-                      <span className="font-medium text-zinc-800">
+                      <span className="font-medium text-violet-200">
                         {meta.contextChars.toLocaleString()}
                       </span>{" "}
                       characters
                     </p>
                     {meta.pdfNote && (
-                      <p className="text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-2 py-1.5">
+                      <p className="text-amber-300 bg-amber-950/30 border border-amber-500/30 rounded-md px-2 py-1.5">
                         {meta.pdfNote}
                       </p>
                     )}
@@ -179,8 +179,8 @@ export function PlanPreview({
                   {meta &&
                     (onMetaChange ||
                       Boolean(meta.effectiveTopics?.trim())) && (
-                      <div className="mt-2 rounded-lg border border-zinc-100 bg-white overflow-hidden">
-                        <label className="block px-3 py-2 text-xs font-medium text-zinc-700 border-b border-zinc-100">
+                      <div className="mt-2 rounded-lg border border-violet-500/20 bg-black/40 overflow-hidden shadow-inner">
+                        <label className="block px-3 py-2 text-xs font-medium text-violet-300 border-b border-violet-500/20 bg-black/20">
                           Topic outline (optional edit)
                         </label>
                         {onMetaChange ? (
@@ -193,25 +193,25 @@ export function PlanPreview({
                               })
                             }
                             rows={6}
-                            className="w-full border-0 px-3 py-2 text-[11px] text-zinc-700 font-sans leading-relaxed resize-y min-h-[6rem] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-zinc-900/10"
+                            className="w-full border-0 bg-transparent px-3 py-2 text-[11px] text-violet-100 font-sans leading-relaxed resize-y min-h-[6rem] focus:outline-none focus:ring-1 focus:ring-inset focus:ring-violet-500/40 transition-colors style-scrollbar"
                             placeholder="One topic per line"
                           />
                         ) : (
-                          <pre className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words px-3 py-2 text-[11px] text-zinc-700 font-sans">
+                          <pre className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words px-3 py-2 text-[11px] text-violet-200/90 font-sans style-scrollbar">
                             {meta.effectiveTopics?.trim()}
                           </pre>
                         )}
                       </div>
                     )}
                   {meta.materialTextPreview?.trim() && (
-                    <details className="group mt-2 rounded-lg border border-zinc-100 bg-white">
-                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-zinc-700 list-none flex items-center gap-1 [&::-webkit-details-marker]:hidden">
-                        <span className="text-zinc-400 group-open:rotate-90 transition-transform inline-block">
+                    <details className="group mt-2 rounded-lg border border-violet-500/20 bg-black/40 shadow-inner">
+                      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-violet-300 list-none flex items-center gap-1 [&::-webkit-details-marker]:hidden bg-black/20 rounded-t-lg transition-colors hover:bg-violet-950/30">
+                        <span className="text-violet-500/80 group-open:rotate-90 transition-transform inline-block">
                           ▸
                         </span>
                         Extracted text preview (notes + PDF)
                       </summary>
-                      <pre className="mt-0 max-h-40 overflow-y-auto whitespace-pre-wrap break-words border-t border-zinc-100 px-3 py-2 text-[11px] text-zinc-600 font-mono">
+                      <pre className="mt-0 max-h-40 overflow-y-auto whitespace-pre-wrap break-words border-t border-violet-500/20 px-3 py-2 text-[11px] text-violet-200/60 font-mono style-scrollbar">
                         {meta.materialTextPreview}
                       </pre>
                     </details>
@@ -220,11 +220,11 @@ export function PlanPreview({
               )}
             </div>
 
-            <div className="p-5 sm:p-6 border-t border-zinc-100 flex gap-3 justify-end shrink-0 bg-white">
+            <div className="p-5 sm:p-6 border-t border-violet-500/20 flex gap-3 justify-end shrink-0 bg-zinc-950/40 rounded-b-2xl">
               <button
                 type="button"
                 onClick={onEdit}
-                className="px-4 py-2.5 text-sm font-medium text-zinc-600 hover:text-zinc-900"
+                className="px-4 py-2.5 text-sm font-medium text-violet-300 hover:text-violet-100"
               >
                 Back to goal form
               </button>
@@ -232,7 +232,7 @@ export function PlanPreview({
                 type="button"
                 disabled={saving}
                 onClick={onConfirm}
-                className="rounded-xl bg-zinc-900 text-white px-5 py-2.5 text-sm font-medium disabled:opacity-40 hover:bg-zinc-800"
+                className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-5 py-2.5 text-sm font-medium disabled:opacity-40 hover:from-violet-500 hover:to-fuchsia-500 transition-all shadow-lg shadow-violet-900/40"
               >
                 {saving ? "Saving…" : "Confirm plan"}
               </button>

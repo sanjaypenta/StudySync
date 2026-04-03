@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -265,45 +265,45 @@ export function CalendarPage() {
   };
 
   return (
-    <div className="min-h-0 bg-zinc-50/90 pb-8">
+    <div className="min-h-0 bg-[#0c0518] pb-8 text-violet-100">
       {backendOk === false && (
         <div
           role="alert"
-          className="bg-amber-50 border-b border-amber-200 text-amber-950 px-4 py-3 text-sm"
+          className="bg-amber-950/60 border-b border-amber-500/30 text-amber-300 px-4 py-3 text-sm"
         >
           <strong className="font-semibold">Backend not reachable.</strong>{" "}
           The API must run on port 4000. From the repo root run{" "}
-          <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-900">
+          <code className="rounded bg-amber-900/40 px-1.5 py-0.5 text-xs text-amber-200">
             npm run dev
           </code>{" "}
           (starts frontend + backend). Or in two terminals:{" "}
-          <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-900">
+          <code className="rounded bg-amber-900/40 px-1.5 py-0.5 text-xs text-amber-200">
             npm run dev:backend
           </code>{" "}
           and{" "}
-          <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-900">
+          <code className="rounded bg-amber-900/40 px-1.5 py-0.5 text-xs text-amber-200">
             npm run dev:frontend
           </code>
           .
         </div>
       )}
-      <header className="border-b border-zinc-200 bg-white sticky top-0 z-10 shadow-sm">
+      <header className="border-b border-violet-500/20 bg-zinc-950/60 sticky top-0 z-10 backdrop-blur-sm shadow-lg shadow-black/20">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <div>
             <Link
               to="/"
-              className="text-sm text-violet-700 hover:text-violet-900 transition-colors"
+              className="text-sm text-violet-400 hover:text-violet-200 transition-colors"
             >
-              ← Dashboard
+              â† Dashboard
             </Link>
-            <h1 className="text-xl font-semibold text-zinc-900 mt-1">
+            <h1 className="text-xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-violet-200 to-fuchsia-200 mt-1">
               Calendar
             </h1>
-            <p className="text-sm text-zinc-600 mt-1 max-w-md">
+            <p className="text-sm text-violet-300/60 mt-1 max-w-md">
               Your to-dos appear on each day. Click{" "}
-              <span className="font-medium text-zinc-800">Tasks</span> on a date
-              to see the full list —{" "}
-              <span className="font-medium text-violet-700">New goal</span> only
+              <span className="font-medium text-violet-200">Tasks</span> on a date
+              to see the full list â€”{" "}
+              <span className="font-medium text-fuchsia-400">New goal</span> only
               creates a study plan.
             </p>
           </div>
@@ -313,22 +313,22 @@ export function CalendarPage() {
                 type="button"
                 disabled={rescuing}
                 onClick={() => void runRescue()}
-                className="rounded-xl border border-cyan-300 bg-cyan-50 px-4 py-2 text-sm font-medium text-cyan-900 hover:bg-cyan-100 transition-colors disabled:opacity-50"
+                className="rounded-xl border border-cyan-500/40 bg-cyan-950/40 px-4 py-2 text-sm font-medium text-cyan-300 hover:bg-cyan-900/40 transition-colors disabled:opacity-50"
               >
-                {rescuing ? "Adjusting…" : "Rescue overdue"}
+                {rescuing ? "Adjustingâ€¦" : "Rescue overdue"}
               </button>
             ) : null}
             <button
               type="button"
               onClick={() => setSelectedDate(today)}
-              className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-800 hover:bg-zinc-50 transition-colors"
+              className="rounded-xl border border-violet-500/30 bg-zinc-900/50 px-4 py-2 text-sm font-medium text-violet-200 hover:bg-violet-950/50 hover:border-violet-400/50 transition-colors"
             >
               Today&apos;s tasks
             </button>
             <button
               type="button"
               onClick={() => openGoalForDate(today)}
-              className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-4 py-2 text-sm font-medium hover:opacity-95 transition-colors"
+              className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-4 py-2 text-sm font-medium hover:from-violet-500 hover:to-fuchsia-500 transition-all shadow-lg shadow-violet-900/30"
             >
               New goal
             </button>
@@ -341,48 +341,48 @@ export function CalendarPage() {
           <button
             type="button"
             onClick={prevMonth}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-800 hover:bg-zinc-50"
+            className="rounded-lg border border-violet-500/30 bg-zinc-900/50 px-3 py-1.5 text-sm text-violet-300 hover:bg-violet-950/50 transition-colors"
             aria-label="Previous month"
           >
-            ←
+            â†
           </button>
-          <h2 className="text-lg font-medium text-zinc-900">{monthLabel}</h2>
+          <h2 className="text-lg font-medium text-violet-100">{monthLabel}</h2>
           <button
             type="button"
             onClick={nextMonth}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-800 hover:bg-zinc-50"
+            className="rounded-lg border border-violet-500/30 bg-zinc-900/50 px-3 py-1.5 text-sm text-violet-300 hover:bg-violet-950/50 transition-colors"
             aria-label="Next month"
           >
-            →
+            â†’
           </button>
         </div>
 
         {loadingTodos && (
           <div className="mb-6 space-y-2">
-            <div className="h-4 w-36 animate-pulse rounded bg-zinc-200/90" />
+            <div className="h-4 w-36 animate-pulse rounded bg-violet-900/40" />
             <div className="grid grid-cols-7 gap-1">
               {[1, 2, 3, 4, 5, 6, 7].map((i) => (
                 <div
                   key={i}
-                  className="h-24 animate-pulse rounded-lg bg-zinc-200/70"
+                  className="h-24 animate-pulse rounded-lg bg-violet-900/20"
                 />
               ))}
             </div>
           </div>
         )}
 
-        <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-zinc-200 bg-zinc-50">
+        <div className="rounded-2xl border border-violet-500/20 bg-zinc-950/60 shadow-xl overflow-hidden">
+          <div className="grid grid-cols-7 border-b border-violet-500/20 bg-black/30">
             {WEEKDAYS.map((d) => (
               <div
                 key={d}
-                className="px-2 py-2 text-center text-xs font-medium text-zinc-500 uppercase tracking-wide"
+                className="px-2 py-2 text-center text-xs font-medium text-violet-400/70 uppercase tracking-wide"
               >
                 {d}
               </div>
             ))}
           </div>
-          <div className="divide-y divide-zinc-100">
+          <div className="divide-y divide-violet-500/10">
             {grid.map((row, ri) => (
               <div key={ri} className="grid grid-cols-7 min-h-[100px]">
                 {row.map((cell, ci) => {
@@ -390,7 +390,7 @@ export function CalendarPage() {
                     return (
                       <div
                         key={`e-${ri}-${ci}`}
-                        className="border-r border-zinc-50 last:border-r-0 bg-zinc-50/30"
+                        className="border-r border-violet-500/10 last:border-r-0 bg-black/20"
                       />
                     );
                   }
@@ -401,21 +401,23 @@ export function CalendarPage() {
                   return (
                     <div
                       key={cell}
-                      className={`border-r border-zinc-100 last:border-r-0 p-1.5 text-left align-top flex flex-col ${
+                      className={`border-r border-violet-500/10 last:border-r-0 p-1.5 text-left align-top flex flex-col ${
                         isToday
-                          ? "ring-2 ring-inset ring-zinc-900/15 bg-amber-50/40"
-                          : "hover:bg-zinc-50/80"
+                          ? "bg-fuchsia-950/30 ring-2 ring-inset ring-fuchsia-500/30"
+                          : "hover:bg-violet-950/30"
                       } transition-colors`}
                     >
                       <div className="flex items-start justify-between gap-1 mb-1">
                         <button
                           type="button"
                           onClick={() => openGoalForDate(cell)}
-                          className="text-sm font-medium text-left text-zinc-700 hover:text-zinc-900"
+                          className={`text-sm font-medium text-left ${
+                            isToday ? "text-fuchsia-300" : "text-violet-300 hover:text-violet-100"
+                          }`}
                         >
                           {parseInt(cell.split("-")[2], 10)}
                           {isToday && (
-                            <span className="ml-1 text-[10px] font-semibold uppercase text-amber-700">
+                            <span className="ml-1 text-[10px] font-semibold uppercase text-fuchsia-400">
                               Today
                             </span>
                           )}
@@ -426,7 +428,7 @@ export function CalendarPage() {
                             e.stopPropagation();
                             setSelectedDate(cell);
                           }}
-                          className="shrink-0 text-[10px] font-semibold text-zinc-600 hover:text-zinc-900 px-1.5 py-0.5 rounded-md bg-zinc-100/90 hover:bg-zinc-200/90"
+                          className="shrink-0 text-[10px] font-semibold text-violet-400 hover:text-violet-200 px-1.5 py-0.5 rounded-md bg-violet-900/40 hover:bg-violet-800/50 transition-colors"
                           title="View and edit tasks for this day"
                         >
                           Tasks
@@ -444,11 +446,11 @@ export function CalendarPage() {
                               key={t.id}
                               className={`text-[11px] leading-tight truncate rounded px-1 py-0.5 border ${subjectChipClass(t.subject)}`}
                             >
-                              {t.subject} · {t.hours}h
+                              {t.subject} Â· {t.hours}h
                             </div>
                           ))}
                           {dayTasks.length > 3 && (
-                            <span className="text-[10px] text-zinc-400">
+                            <span className="text-[10px] text-violet-400/60">
                               +{dayTasks.length - 3} more
                             </span>
                           )}
@@ -463,20 +465,20 @@ export function CalendarPage() {
         </div>
 
         <section
-          className="mt-8 rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden"
+          className="mt-8 rounded-2xl border border-violet-500/20 bg-zinc-950/60 shadow-xl overflow-hidden"
           aria-labelledby="month-tasks-heading"
         >
-          <div className="px-4 py-3 border-b border-zinc-100 bg-zinc-50/80 flex items-center justify-between gap-2">
+          <div className="px-4 py-3 border-b border-violet-500/15 bg-black/30 flex items-center justify-between gap-2">
             <div>
               <h2
                 id="month-tasks-heading"
-                className="text-sm font-semibold text-zinc-900"
+                className="text-sm font-semibold text-violet-100"
               >
                 Tasks this month
               </h2>
-              <p className="text-xs text-zinc-500 mt-0.5">
+              <p className="text-xs text-violet-400/60 mt-0.5">
                 {loadingTodos
-                  ? "Loading…"
+                  ? "Loadingâ€¦"
                   : `${sortedMonthTodos.length} task${
                       sortedMonthTodos.length === 1 ? "" : "s"
                     } in ${monthLabel}`}
@@ -485,25 +487,25 @@ export function CalendarPage() {
           </div>
           <div className="max-h-[min(420px,55vh)] overflow-y-auto">
             {!loadingTodos && sortedMonthTodos.length === 0 && (
-              <p className="px-4 py-10 text-sm text-zinc-500 text-center">
+              <p className="px-4 py-10 text-sm text-violet-400/60 text-center">
                 No tasks this month yet. Confirm a plan from{" "}
-                <span className="font-medium text-violet-700">New goal</span> or add
+                <span className="font-medium text-fuchsia-400">New goal</span> or add
                 tasks when your database is connected.
               </p>
             )}
-            <ul className="divide-y divide-zinc-100">
+            <ul className="divide-y divide-violet-500/10">
               {sortedMonthTodos.map((t) => (
                 <li key={t.id}>
                   <button
                     type="button"
                     onClick={() => setSelectedDate(t.date)}
-                    className="w-full text-left px-4 py-3 flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 hover:bg-zinc-50/90 transition-colors"
+                    className="w-full text-left px-4 py-3 flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 hover:bg-violet-950/30 transition-colors"
                   >
-                    <span className="text-xs font-medium text-zinc-500 tabular-nums shrink-0 sm:w-28">
+                    <span className="text-xs font-medium text-violet-400/70 tabular-nums shrink-0 sm:w-28">
                       {formatListDate(t.date)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-zinc-900 leading-snug break-words">
+                      <p className="text-sm text-violet-100 leading-snug break-words">
                         {t.task_title}
                       </p>
                       <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -512,7 +514,7 @@ export function CalendarPage() {
                         >
                           {t.subject}
                         </span>
-                        <span className="text-[11px] text-zinc-500">
+                        <span className="text-[11px] text-violet-400/60">
                           {t.hours} hr
                         </span>
                       </div>
@@ -524,11 +526,11 @@ export function CalendarPage() {
           </div>
         </section>
 
-        <p className="text-xs text-zinc-500 mt-4 text-center max-w-xl mx-auto">
+        <p className="text-xs text-violet-400/40 mt-4 text-center max-w-xl mx-auto">
           All tasks for this month are listed above. Click a row to edit that
           day. You can also use{" "}
-          <strong className="font-medium text-zinc-700">Tasks</strong> on the
-          grid or <strong className="font-medium text-violet-700">New goal</strong>{" "}
+          <strong className="font-medium text-violet-300">Tasks</strong> on the
+          grid or <strong className="font-medium text-fuchsia-400">New goal</strong>{" "}
           to create a plan.
         </p>
       </main>
@@ -560,7 +562,7 @@ export function CalendarPage() {
         <button
           type="button"
           onClick={() => openGoalForDate(today)}
-          className="rounded-full bg-zinc-900 text-white px-5 py-3 text-sm font-medium shadow-lg"
+          className="rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-5 py-3 text-sm font-medium shadow-lg shadow-violet-900/40"
         >
           New goal
         </button>

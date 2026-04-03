@@ -46,7 +46,7 @@ export function DayDetails({
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 sm:p-6">
           <motion.button
             type="button"
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -55,18 +55,18 @@ export function DayDetails({
           />
           <motion.div
             role="dialog"
-            className="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-white shadow-xl border border-zinc-200/80 max-h-[85vh] flex flex-col"
+            className="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-zinc-950/80 backdrop-blur-xl shadow-2xl border border-violet-500/30 max-h-[85vh] flex flex-col text-violet-100"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 24 }}
             transition={{ type: "spring", damping: 26, stiffness: 320 }}
           >
-            <div className="p-5 border-b border-zinc-100 space-y-3">
+            <div className="p-5 border-b border-violet-500/20 space-y-3">
               <div>
-                <h2 className="text-lg font-semibold text-zinc-900">
+                <h2 className="text-lg font-semibold text-transparent bg-clip-text bg-gradient-to-r from-violet-200 to-fuchsia-200">
                   {displayDate}
                 </h2>
-                <p className="text-sm text-zinc-500 mt-1">
+                <p className="text-sm text-violet-300/60 mt-1">
                   {todos.length === 0
                     ? "No tasks yet."
                     : `${todos.length} task${todos.length === 1 ? "" : "s"}`}
@@ -77,12 +77,12 @@ export function DayDetails({
                 onClick={() => {
                   onCreateGoal();
                 }}
-                className="w-full rounded-xl bg-zinc-900 text-white py-2.5 text-sm font-medium hover:bg-zinc-800"
+                className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white py-2.5 text-sm font-medium hover:from-violet-500 hover:to-fuchsia-500 shadow-lg shadow-violet-900/40 transition-all"
               >
                 Create study goal
               </button>
             </div>
-            <div className="overflow-y-auto p-4 space-y-3 flex-1">
+            <div className="overflow-y-auto p-4 space-y-3 flex-1 style-scrollbar">
               {todos.map((t) => {
                 const chip = subjectChipClass(t.subject);
                 const hours =
@@ -94,11 +94,11 @@ export function DayDetails({
                 return (
                   <div
                     key={t.id}
-                    className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 space-y-3"
+                    className="rounded-xl border border-violet-500/20 bg-black/30 p-4 space-y-3 shadow-inner"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-sm font-medium text-zinc-900">
+                        <p className="text-sm font-medium text-violet-200">
                           {t.task_title}
                         </p>
                         <span
@@ -107,7 +107,7 @@ export function DayDetails({
                           {t.subject}
                         </span>
                       </div>
-                      <label className="flex items-center gap-2 text-xs text-zinc-500 shrink-0">
+                      <label className="flex items-center gap-2 text-xs text-violet-400/80 shrink-0 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={
@@ -125,19 +125,19 @@ export function DayDetails({
                             }));
                             await onUpdate(t.id, { status });
                           }}
-                          className="rounded border-zinc-300"
+                          className="rounded border-violet-500/40 bg-black/40 accent-violet-500 w-4 h-4"
                         />
                         Done
                       </label>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-xs text-zinc-500">Hours</label>
+                        <label className="text-xs text-violet-400/80">Hours</label>
                         <input
                           type="number"
                           min={0}
                           step={0.25}
-                          className="mt-0.5 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+                          className="mt-0.5 w-full rounded-lg border border-violet-500/30 bg-black/40 text-violet-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500/40 transition-colors"
                           value={hours}
                           onChange={(e) => {
                             const v = parseFloat(e.target.value);
@@ -154,9 +154,9 @@ export function DayDetails({
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-zinc-500">Move to</label>
+                        <label className="text-xs text-violet-400/80">Move to</label>
                         <select
-                          className="mt-0.5 w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm"
+                          className="mt-0.5 w-full rounded-lg border border-violet-500/30 bg-black/40 text-violet-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500/40 transition-colors [color-scheme:dark]"
                           value={moveDate}
                           onChange={async (e) => {
                             const next = e.target.value;
@@ -168,7 +168,7 @@ export function DayDetails({
                           }}
                         >
                           {monthDates.map((d) => (
-                            <option key={d} value={d}>
+                            <option key={d} value={d} className="bg-zinc-900">
                               {d}
                             </option>
                           ))}
@@ -178,7 +178,7 @@ export function DayDetails({
                     <button
                       type="button"
                       onClick={() => onDelete(t.id)}
-                      className="text-xs text-rose-600 hover:text-rose-700 font-medium"
+                      className="text-xs text-rose-400 hover:text-rose-300 font-medium transition-colors"
                     >
                       Delete task
                     </button>
@@ -186,11 +186,11 @@ export function DayDetails({
                 );
               })}
             </div>
-            <div className="p-4 border-t border-zinc-100">
+            <div className="p-4 border-t border-violet-500/20 bg-zinc-950/40 rounded-b-2xl sm:rounded-b-2xl">
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full rounded-xl border border-zinc-200 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                className="w-full rounded-xl border border-violet-500/30 py-2.5 text-sm font-medium text-violet-300 hover:bg-violet-900/30 hover:border-violet-500/50 hover:text-violet-100 transition-colors"
               >
                 Close
               </button>

@@ -206,32 +206,32 @@ export function OnboardingPage() {
         {/* Step 1 — Screen time */}
         {step === 1 && (
           <div className="mt-8 space-y-4">
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm text-violet-300/80">
               Average daily screen time (hours). Split between phone and
               laptop helps us understand your routine.
             </p>
-            <label className="block text-sm font-medium text-zinc-700">
+            <label className="block text-sm font-medium text-violet-100">
               Mobile
               <input
                 type="number"
                 min={0}
                 max={24}
                 step={0.5}
-                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+                className="mt-1 w-full rounded-xl border border-violet-500/30 bg-black/30 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50"
                 value={mobileHours}
                 onChange={(e) =>
                   setMobileHours(Number.parseFloat(e.target.value) || 0)
                 }
               />
             </label>
-            <label className="block text-sm font-medium text-zinc-700">
+            <label className="block text-sm font-medium text-violet-100">
               Laptop / desktop
               <input
                 type="number"
                 min={0}
                 max={24}
                 step={0.5}
-                className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2"
+                className="mt-1 w-full rounded-xl border border-violet-500/30 bg-black/30 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50"
                 value={laptopHours}
                 onChange={(e) =>
                   setLaptopHours(Number.parseFloat(e.target.value) || 0)
@@ -244,34 +244,34 @@ export function OnboardingPage() {
         {/* Step 2 — Study preference */}
         {step === 2 && (
           <div className="mt-8 space-y-3">
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm text-violet-300/80">
               How do you prefer to study most of the time?
             </p>
             <button
               type="button"
               onClick={() => setStudyMode("self")}
-              className={`w-full rounded-xl border px-4 py-4 text-left text-sm ${
+              className={`w-full rounded-xl border px-4 py-4 text-left text-sm transition ${
                 studyMode === "self"
-                  ? "border-zinc-900 bg-zinc-100 ring-2 ring-zinc-900"
-                  : "border-zinc-200 bg-white"
+                  ? "border-fuchsia-400/70 bg-fuchsia-950/50 text-fuchsia-50 ring-1 ring-fuchsia-400/50"
+                  : "border-violet-500/25 bg-zinc-900/40 text-violet-200 hover:border-violet-400/40"
               }`}
             >
               <span className="font-medium">Self-study</span>
-              <span className="mt-1 block text-zinc-500">
+              <span className="mt-1 block text-violet-300/60">
                 Solo focus, your own pace
               </span>
             </button>
             <button
               type="button"
               onClick={() => setStudyMode("group")}
-              className={`w-full rounded-xl border px-4 py-4 text-left text-sm ${
+              className={`w-full rounded-xl border px-4 py-4 text-left text-sm transition ${
                 studyMode === "group"
-                  ? "border-zinc-900 bg-zinc-100 ring-2 ring-zinc-900"
-                  : "border-zinc-200 bg-white"
+                  ? "border-fuchsia-400/70 bg-fuchsia-950/50 text-fuchsia-50 ring-1 ring-fuchsia-400/50"
+                  : "border-violet-500/25 bg-zinc-900/40 text-violet-200 hover:border-violet-400/40"
               }`}
             >
               <span className="font-medium">Group study</span>
-              <span className="mt-1 block text-zinc-500">
+              <span className="mt-1 block text-violet-300/60">
                 Rooms, quizzes, and peers
               </span>
             </button>
@@ -281,39 +281,39 @@ export function OnboardingPage() {
         {/* Step 3 — Daily schedule */}
         {step === 3 && (
           <div className="mt-8 space-y-4">
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm text-violet-300/80">
               Map a typical day: wake, sleep, and a few blocks (classes, meals,
               free time).
             </p>
             <div className="flex gap-3">
-              <label className="flex-1 text-sm font-medium text-zinc-700">
+              <label className="flex-1 text-sm font-medium text-violet-100">
                 Wake
                 <input
                   type="time"
-                  className="mt-1 w-full rounded-lg border border-zinc-300 px-2 py-2"
+                  className="mt-1 w-full rounded-xl border border-violet-500/30 bg-black/30 px-2 py-2 text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50"
                   value={wakeTime}
                   onChange={(e) => setWakeTime(e.target.value)}
                 />
               </label>
-              <label className="flex-1 text-sm font-medium text-zinc-700">
+              <label className="flex-1 text-sm font-medium text-violet-100">
                 Sleep
                 <input
                   type="time"
-                  className="mt-1 w-full rounded-lg border border-zinc-300 px-2 py-2"
+                  className="mt-1 w-full rounded-xl border border-violet-500/30 bg-black/30 px-2 py-2 text-white focus:outline-none focus:ring-2 focus:ring-fuchsia-500/50"
                   value={sleepTime}
                   onChange={(e) => setSleepTime(e.target.value)}
                 />
               </label>
             </div>
             <div className="space-y-2">
-              <p className="text-sm font-medium text-zinc-800">Blocks</p>
+              <p className="text-sm font-medium text-violet-100">Blocks</p>
               {blocks.map((b) => (
                 <div
                   key={b._key}
-                  className="flex flex-wrap items-end gap-2 rounded-lg border border-zinc-200 bg-white p-3"
+                  className="flex flex-wrap items-end gap-2 rounded-xl border border-violet-500/25 bg-zinc-900/40 p-3"
                 >
                   <input
-                    className="min-w-[100px] flex-1 rounded border border-zinc-200 bg-white px-2 py-1 text-sm text-zinc-900"
+                    className="min-w-[100px] flex-1 rounded-lg border border-violet-500/30 bg-black/30 px-2 py-1 text-sm text-white placeholder:text-zinc-500 focus:outline-none"
                     value={b.label}
                     onChange={(e) => {
                       setBlocks((prev) =>
@@ -326,7 +326,7 @@ export function OnboardingPage() {
                   />
                   <input
                     type="time"
-                    className="rounded border border-zinc-200 bg-white px-2 py-1 text-sm text-zinc-900"
+                    className="rounded-lg border border-violet-500/30 bg-black/30 px-2 py-1 text-sm text-white focus:outline-none"
                     value={b.start}
                     onChange={(e) => {
                       setBlocks((prev) =>
@@ -336,10 +336,10 @@ export function OnboardingPage() {
                       );
                     }}
                   />
-                  <span className="text-zinc-400">–</span>
+                  <span className="text-violet-400">–</span>
                   <input
                     type="time"
-                    className="rounded border border-zinc-200 bg-white px-2 py-1 text-sm text-zinc-900"
+                    className="rounded-lg border border-violet-500/30 bg-black/30 px-2 py-1 text-sm text-white focus:outline-none"
                     value={b.end}
                     onChange={(e) => {
                       setBlocks((prev) =>
@@ -351,7 +351,7 @@ export function OnboardingPage() {
                   />
                   <button
                     type="button"
-                    className="rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                    className="rounded-lg px-2 py-1 text-xs font-medium text-rose-400 hover:bg-rose-400/10 transition"
                     onClick={() =>
                       setBlocks((prev) => prev.filter((x) => x._key !== b._key))
                     }
@@ -362,7 +362,7 @@ export function OnboardingPage() {
               ))}
               <button
                 type="button"
-                className="text-sm text-violet-200 underline hover:text-white"
+                className="text-sm text-violet-400 underline hover:text-violet-200 transition"
                 onClick={() =>
                   setBlocks((prev) => [
                     ...prev,
@@ -434,7 +434,7 @@ export function OnboardingPage() {
             type="button"
             disabled={step === 0 || saving}
             onClick={() => setStep((s) => Math.max(0, s - 1))}
-            className="rounded-xl border border-zinc-300 px-4 py-2 text-sm disabled:opacity-40"
+            className="rounded-xl border border-violet-500/30 bg-zinc-900/50 px-4 py-2 text-sm text-violet-200 hover:bg-violet-950/50 hover:border-violet-400/50 transition disabled:opacity-40"
           >
             Back
           </button>
@@ -443,7 +443,7 @@ export function OnboardingPage() {
               type="button"
               disabled={saving || (step === 0 && !companionType)}
               onClick={() => setStep((s) => s + 1)}
-              className="rounded-xl bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:opacity-40"
+              className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2 text-sm font-medium text-white hover:from-violet-500 hover:to-fuchsia-500 transition disabled:opacity-40 shadow-lg shadow-violet-900/30"
             >
               Next
             </button>
@@ -452,7 +452,7 @@ export function OnboardingPage() {
               type="button"
               disabled={saving}
               onClick={() => void finish()}
-              className="rounded-xl bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:opacity-60"
+              className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2 text-sm font-medium text-white hover:from-violet-500 hover:to-fuchsia-500 transition disabled:opacity-60 shadow-lg shadow-violet-900/30"
             >
               {saving ? "Saving…" : "Finish"}
             </button>
@@ -462,6 +462,15 @@ export function OnboardingPage() {
     </div>
   );
 }
+
+const BLOCK_COLORS: Record<string, { bar: string; dot: string; label: string }> = {
+  wake:  { bar: "bg-amber-400/80 border-amber-300/50",   dot: "bg-amber-400",   label: "Wake"  },
+  class: { bar: "bg-violet-500/80 border-violet-400/50", dot: "bg-violet-500",  label: "Class" },
+  meal:  { bar: "bg-emerald-500/80 border-emerald-400/50", dot: "bg-emerald-500", label: "Meal"  },
+  free:  { bar: "bg-cyan-500/80 border-cyan-400/50",     dot: "bg-cyan-500",    label: "Free"  },
+  sleep: { bar: "bg-indigo-600/80 border-indigo-400/50", dot: "bg-indigo-600",  label: "Sleep" },
+};
+const FALLBACK_COLOR = { bar: "bg-fuchsia-500/80 border-fuchsia-400/50", dot: "bg-fuchsia-500", label: "Other" };
 
 function DayMapVisual({
   wakeTime,
@@ -477,47 +486,63 @@ function DayMapVisual({
   const span = dayEnd - dayStart;
 
   const segments = useMemo(() => {
-    const segs: { label: string; left: number; width: number; key: string }[] =
-      [];
-    const push = (
-      label: string,
-      start: string,
-      end: string,
-      key: string
-    ) => {
+    const segs: { label: string; left: number; width: number; key: string; type: string }[] = [];
+    const push = (label: string, start: string, end: string, key: string, type: string) => {
       const a = parseMinutes(start);
       const b = parseMinutes(end);
       if (b <= a) return;
       const left = ((Math.max(a, dayStart) - dayStart) / span) * 100;
       const width = ((Math.min(b, dayEnd) - Math.max(a, dayStart)) / span) * 100;
       if (width <= 0) return;
-      segs.push({ label, left, width, key });
+      segs.push({ label, left, width, key, type });
     };
-    push("Wake", wakeTime, minutesToLabel(parseMinutes(wakeTime) + 30), "w");
+    push("Wake", wakeTime, minutesToLabel(parseMinutes(wakeTime) + 30), "w", "wake");
     blocks.forEach((b, idx) => {
-      push(b.label, b.start, b.end, `${b.label}-${b.start}-${b.end}-${idx}`);
+      push(b.label, b.start, b.end, `${b.label}-${b.start}-${b.end}-${idx}`, b.type);
     });
-    push("Sleep", minutesToLabel(parseMinutes(sleepTime) - 30), sleepTime, "s");
+    push("Sleep", minutesToLabel(parseMinutes(sleepTime) - 30), sleepTime, "s", "sleep");
     return segs;
   }, [wakeTime, sleepTime, blocks]);
 
+  const usedTypes = Array.from(new Set(segments.map((s) => s.type)));
+
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4">
-      <div className="relative h-14 w-full overflow-hidden rounded-lg bg-zinc-100">
-        {segments.map((s) => (
-          <div
-            key={s.key}
-            title={s.label}
-            className="absolute top-1 bottom-1 rounded bg-zinc-700/80 text-[10px] text-white flex items-center justify-center px-0.5 overflow-hidden"
-            style={{ left: `${s.left}%`, width: `${s.width}%` }}
-          >
-            {s.width > 8 ? s.label : ""}
-          </div>
-        ))}
+    <div className="rounded-xl border border-violet-500/25 bg-zinc-900/40 p-4 space-y-3">
+      {/* Time axis labels */}
+      <div className="flex justify-between text-[10px] text-violet-400/40 px-0.5">
+        <span>06:00</span>
+        <span>12:00</span>
+        <span>18:00</span>
+        <span>24:00</span>
       </div>
-      <p className="mt-2 text-xs text-zinc-500">
-        06:00 — 24:00 (simplified day strip)
-      </p>
+      {/* Colored day strip */}
+      <div className="relative h-12 w-full overflow-hidden rounded-lg bg-black/50">
+        {segments.map((s) => {
+          const c = BLOCK_COLORS[s.type] ?? FALLBACK_COLOR;
+          return (
+            <div
+              key={s.key}
+              title={`${s.label} (${s.type})`}
+              className={`absolute top-1 bottom-1 rounded text-[10px] text-white flex items-center justify-center px-1 overflow-hidden border ${c.bar}`}
+              style={{ left: `${s.left}%`, width: `${s.width}%` }}
+            >
+              {s.width > 8 ? s.label : ""}
+            </div>
+          );
+        })}
+      </div>
+      {/* Legend */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+        {usedTypes.map((type) => {
+          const c = BLOCK_COLORS[type] ?? FALLBACK_COLOR;
+          return (
+            <div key={type} className="flex items-center gap-1.5">
+              <span className={`h-2.5 w-2.5 rounded-full ${c.dot}`} />
+              <span className="text-[11px] text-violet-300/70">{c.label}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
