@@ -13,6 +13,8 @@ import { SelfStudyPage } from "./pages/SelfStudyPage";
 import { ProgressPage } from "./pages/ProgressPage";
 import { StudyDnaPage } from "./pages/StudyDnaPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { SearchBuddyPage } from "./pages/SearchBuddyPage";
+import { BuddyProfilePage } from "./pages/BuddyProfilePage";
 import { BuddyArenaPage } from "./pages/BuddyArenaPage";
 import { RequireOnboarding } from "./layout/RequireOnboarding";
 import { RequireAuth } from "./layout/RequireAuth";
@@ -39,6 +41,8 @@ export default function App() {
             <Route path="/progress" element={<ProgressPage />} />
             <Route path="/study-dna" element={<StudyDnaPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/search" element={<SearchBuddyPage />} />
+            <Route path="/search/profile/:id" element={<BuddyProfilePage />} />
             <Route path="/buddies" element={<BuddyArenaPage />} />
             <Route path="/study-room" element={<StudyRoomLayout />}>
               <Route index element={<StudyRoomCreatePage />} />

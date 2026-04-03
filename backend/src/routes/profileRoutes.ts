@@ -30,6 +30,7 @@ function serialize(p: {
   last_study_date: string;
   subjectMastery: any[];
   isLookingForBuddy: boolean;
+  syncCode?: string;
 }) {
   return {
     userId: p.user_id,
@@ -56,6 +57,7 @@ function serialize(p: {
     last_study_date: p.last_study_date ?? "",
     subjectMastery: p.subjectMastery ?? [],
     isLookingForBuddy: p.isLookingForBuddy ?? false,
+    syncCode: p.syncCode ?? p.user_id.slice(-6).toUpperCase(),
   };
 }
 
@@ -69,14 +71,31 @@ profileRouter.get("/", async (req, res) => {
       return;
     }
     const userId = req.userId!;
-    let doc = await UserProfileModel.findOne({ user_id: userId });
+
+    const generateSyncCode = () =>
+      (Math.random().toString(36).substring(2, 5) + Math.random().toString(36).substring(2, 5))
+        .substring(0, 6).toUpperCase();
+
+    let doc = await UserProfileModel.findOne({ user_id: userId }).lean();
+
     if (!doc) {
-      doc = await UserProfileModel.create({
+      const created = await UserProfileModel.create({
         user_id: userId,
         onboardingComplete: false,
+        syncCode: generateSyncCode(),
       });
+      doc = created.toObject() as any;
+    } else if (!doc.syncCode) {
+      // Assign atomically to avoid duplicate key race conditions
+      const updated = await UserProfileModel.findOneAndUpdate(
+        { user_id: userId, $or: [{ syncCode: { $exists: false } }, { syncCode: null }, { syncCode: "" }] },
+        { $set: { syncCode: generateSyncCode() } },
+        { new: true, lean: true }
+      );
+      if (updated) doc = updated;
     }
-    res.json({ profile: serialize(doc) });
+
+    res.json({ profile: serialize(doc!) });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Failed to load profile" });

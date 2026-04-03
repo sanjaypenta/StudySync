@@ -9,6 +9,7 @@ buddiesRouter.use(authMiddleware);
 
 export type BuddyRecommendation = {
   userId: string;
+  syncCode: string;
   matchScore: number;
   matchReason: string;
   theyCanHelpYouWith: string[];
@@ -91,6 +92,7 @@ buddiesRouter.get("/recommend", async (req, res) => {
       if (score > 0) {
         recommendations.push({
           userId: c.user_id,
+          syncCode: c.syncCode || c.user_id.slice(-6).toUpperCase(),
           matchScore: score,
           matchReason,
           theyCanHelpYouWith,
@@ -107,19 +109,26 @@ buddiesRouter.get("/recommend", async (req, res) => {
   }
 });
 
-// Search by full user_id
+// Search by unique code (syncCode)
 buddiesRouter.get("/search", async (req, res) => {
   try {
     const q = req.query.q as string;
     if (!q) return res.json({ results: [] });
     
-    // For MVP, unique code is user_id
-    const user = await UserProfileModel.findOne({ user_id: q }).lean();
+    // allow matching either user_id or syncCode
+    const user = await UserProfileModel.findOne({ 
+      $or: [
+        { syncCode: q.toUpperCase() },
+        { user_id: q } // For backward compatibility / testing
+      ]
+    }).lean();
+    
     if (!user) return res.json({ results: [] });
     
     res.json({
       results: [{
         userId: user.user_id,
+        syncCode: user.syncCode || user.user_id.slice(-6).toUpperCase(),
         companionType: user.companion_type,
         streak: user.study_streak
       }]
@@ -204,6 +213,109 @@ buddiesRouter.get("/connections", async (req, res) => {
     res.json({ connections: result });
   } catch (e) {
     res.status(500).json({ error: "Failed to fetch connections" });
+  }
+});
+
+// ── Profile Detail ─────────────────────────────────────────
+buddiesRouter.get("/profile/:targetId", async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const { targetId } = req.params;
+
+    const [myProfile, targetProfile] = await Promise.all([
+      UserProfileModel.findOne({ user_id: userId }).lean(),
+      UserProfileModel.findOne({ user_id: targetId }).lean(),
+    ]);
+
+    if (!targetProfile) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // connection status
+    const connection = await UserConnection.findOne({
+      $or: [
+        { requester_id: userId, recipient_id: targetId },
+        { requester_id: targetId, recipient_id: userId }
+      ]
+    }).lean();
+
+    let connectionStatus = "none";
+    if (connection) {
+      if (connection.status === "accepted") connectionStatus = "connected";
+      else if (connection.requester_id === userId) connectionStatus = "request_sent";
+      else connectionStatus = "request_received";
+    }
+
+    // Match computation
+    let matchScore = 0;
+    const theyCanHelpYouWith: string[] = [];
+    const youCanHelpThemWith: string[] = [];
+    let matchReason = "Not enough subject mastery data to calculate synergy yet.";
+
+    if (myProfile) {
+      if (userId === targetId) {
+        matchScore = 100;
+        matchReason = "This is you! 🪞";
+      } else {
+        const mySubjects = new Map<string, number>();
+        (myProfile.subjectMastery || []).forEach((m: SubjectMastery) => mySubjects.set(m.subject, m.currentLevel));
+
+        const theirSubjects = new Map<string, number>();
+        (targetProfile.subjectMastery || []).forEach((m: SubjectMastery) => theirSubjects.set(m.subject, m.currentLevel));
+
+        for (const [subject, theirLevel] of theirSubjects.entries()) {
+          const myLevel = mySubjects.get(subject) || 0;
+          if (theirLevel >= myLevel + 2 && theirLevel >= 3) {
+            matchScore += (theirLevel - myLevel) * 5;
+            theyCanHelpYouWith.push(subject);
+          }
+        }
+
+        for (const [subject, myLevel] of mySubjects.entries()) {
+          const theirLevel = theirSubjects.get(subject) || 0;
+          if (myLevel >= theirLevel + 2 && myLevel >= 3) {
+            matchScore += (myLevel - theirLevel) * 5;
+            youCanHelpThemWith.push(subject);
+          }
+        }
+
+        if (theyCanHelpYouWith.length > 0 && youCanHelpThemWith.length > 0) {
+          matchScore = Math.round(matchScore * 1.5);
+          matchReason = `Perfect synergy! They excel at ${theyCanHelpYouWith[0]} while you rock at ${youCanHelpThemWith[0]}.`;
+        } else if (theyCanHelpYouWith.length > 0) {
+          matchReason = `Great mentor for ${theyCanHelpYouWith[0]}.`;
+        } else if (youCanHelpThemWith.length > 0) {
+          matchReason = `They could really use your help with ${youCanHelpThemWith[0]}.`;
+        } else if (matchScore > 0) {
+          matchReason = `You both study similar subjects.`;
+        }
+
+        for (const subject of mySubjects.keys()) {
+          if (theirSubjects.has(subject)) matchScore += 2;
+        }
+      }
+    }
+
+    res.json({
+      userId: targetProfile.user_id,
+      syncCode: targetProfile.syncCode || targetProfile.user_id.slice(-6).toUpperCase(),
+      matchScore,
+      matchReason,
+      theyCanHelpYouWith,
+      youCanHelpThemWith,
+      streak: targetProfile.study_streak || 0,
+      companionType: targetProfile.companion_type,
+      connectionStatus,
+      // Rich profile fields
+      interests: targetProfile.interests || [],
+      learnerSummary: targetProfile.learnerSummary || "",
+      studyMode: targetProfile.studyMode || "self",
+      subjectMastery: targetProfile.subjectMastery || [],
+      weeklyStudyHoursTarget: targetProfile.weeklyStudyHoursTarget || 10,
+    });
+
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch buddy profile" });
   }
 });
 

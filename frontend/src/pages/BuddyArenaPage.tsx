@@ -1,17 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   authHeaders,
   fetchBuddyConnections,
-  searchBuddyByCode,
   sendBuddyRequest,
   acceptBuddyRequest,
 } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-
-// ── Types ──────────────────────────────────────────────────
-
-type Tab = "chat" | "discover";
 
 type Connection = {
   id: string;
@@ -28,14 +23,6 @@ type BuddyRec = {
   youCanHelpThemWith: string[];
 };
 
-type SearchResult = {
-  userId: string;
-  companionType: string | null;
-  streak: number;
-};
-
-// ── Helpers ────────────────────────────────────────────────
-
 function avatarLetter(uid: string) {
   return uid.substring(0, 2).toUpperCase();
 }
@@ -46,58 +33,27 @@ export function BuddyArenaPage() {
   const { user } = useAuth();
   const myId = (user as any)?.id ?? (user as any)?._id ?? "";
 
-  const [tab, setTab] = useState<Tab>("discover");
   const [connections, setConnections] = useState<Connection[]>([]);
-  const [recs, setRecs] = useState<BuddyRec[]>([]);
-  const [searchQ, setSearchQ] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [recsLoading, setRecsLoading] = useState(true);
-  const [recsError, setRecsError] = useState<string | null>(null);
+  const [friendFilter, setFriendFilter] = useState("");
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [requestingId, setRequestingId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [showMailbox, setShowMailbox] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState<BuddyRec | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   };
 
-  // load connections on mount
   useEffect(() => {
     (async () => {
       try {
         const data = await fetchBuddyConnections();
         setConnections(data.connections as Connection[]);
-      } catch { /* offline */ }
+      } catch {}
     })();
   }, []);
-
-  // load recommendations
-  useEffect(() => {
-    if (tab !== "discover") return;
-    (async () => {
-      try {
-        const res = await fetch("/api/buddies/recommend", { headers: authHeaders() });
-        const data = await res.json();
-        if (!res.ok) { setRecsError(data.error || "Enable buddy search in Profile first."); }
-        else setRecs(data.recommendations ?? []);
-      } catch { setRecsError("Could not load recommendations."); }
-      setRecsLoading(false);
-    })();
-  }, [tab]);
-
-  async function handleSearch() {
-    if (!searchQ.trim()) return;
-    setSearching(true);
-    setSearchResults([]);
-    try {
-      const data = await searchBuddyByCode(searchQ.trim());
-      setSearchResults(data.results);
-      if (data.results.length === 0) showToast("No user found with that code.");
-    } catch { showToast("Search failed."); }
-    setSearching(false);
-  }
 
   async function handleSendRequest(targetId: string) {
     setRequestingId(targetId);
@@ -106,6 +62,7 @@ export function BuddyArenaPage() {
       showToast(result.status === "accepted" ? "🎉 Now connected!" : "✅ Request sent!");
       const data = await fetchBuddyConnections();
       setConnections(data.connections as Connection[]);
+      setSelectedProfile(null);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Failed to send request.");
     }
@@ -123,185 +80,185 @@ export function BuddyArenaPage() {
 
   const accepted = connections.filter(c => c.status === "accepted");
   const incoming = connections.filter(c => c.isIncomingRequest);
+  const outgoing = connections.filter(c => !c.isIncomingRequest && c.status === "pending");
+  const mailboxCount = incoming.length + outgoing.length;
+
+  const filteredFriends = useMemo(() => {
+    if (!friendFilter.trim()) return accepted;
+    return accepted.filter(c => c.buddyId.toLowerCase().includes(friendFilter.toLowerCase()));
+  }, [accepted, friendFilter]);
 
   return (
-    <div className="relative min-h-screen" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
-      {/* Background glow */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 right-0 h-96 w-96 rounded-full bg-gradient-to-br from-violet-600/20 via-fuchsia-500/10 to-transparent blur-3xl" />
-        <div className="absolute bottom-0 left-0 h-80 w-80 rounded-full bg-gradient-to-tr from-cyan-600/15 to-transparent blur-3xl" />
-      </div>
+    <div className="relative h-screen flex flex-col bg-zinc-950" style={{ fontFamily: "Space Grotesk, sans-serif" }}>
 
       {/* Toast */}
       <AnimatePresence>
         {toast && (
           <motion.div
             initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
-            className="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-violet-400/30 bg-zinc-900/95 px-5 py-2.5 text-sm font-semibold text-violet-100 shadow-xl backdrop-blur"
+            className="fixed top-4 left-1/2 z-[60] -translate-x-1/2 rounded-2xl border border-violet-400/30 bg-zinc-900/95 px-5 py-2.5 text-sm font-semibold text-violet-100 shadow-xl backdrop-blur"
           >
             {toast}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Split: Chat list + active chat OR discover ── */}
-      <div className="flex h-full gap-0">
-
-        {/* LEFT PANEL */}
-        <div className="w-full max-w-xs shrink-0 flex flex-col border-r border-white/5 bg-zinc-950/70 min-h-[calc(100vh-64px)]">
-
-          {/* Header + tabs */}
-          <div className="p-4 pb-0">
-            <h1 className="text-lg font-black text-white tracking-tight">Study Buddies</h1>
-            <p className="text-[11px] text-zinc-500 mt-0.5">Connect. Learn. Level up together.</p>
-            <div className="mt-4 flex gap-1 rounded-xl bg-zinc-900 p-1">
-              {(["discover","chat"] as Tab[]).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`flex-1 rounded-lg py-1.5 text-xs font-bold capitalize transition-all ${tab === t ? "bg-violet-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
-                >
-                  {t === "chat" ? `💬 Learning Buddies${accepted.length > 0 ? ` (${accepted.length})` : ""}` : "🔍 Discover"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Pixelated search bar */}
-          <div className="px-4 mt-4">
-            <div
-              className="flex items-center gap-2 rounded-none border-2 border-fuchsia-500/60 bg-black px-3 py-2"
-              style={{
-                boxShadow: "3px 3px 0px #7c3aed, inset 1px 1px 0px rgba(255,255,255,0.05)",
-                imageRendering: "pixelated",
-              }}
+      {/* Mailbox Modal */}
+      <AnimatePresence>
+        {showMailbox && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowMailbox(false)}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-900 p-6 shadow-2xl relative"
+              onClick={e => e.stopPropagation()}
             >
-              <span className="text-fuchsia-400 text-sm" style={{ fontFamily: "monospace", letterSpacing: "-1px" }}>▶</span>
-              <input
-                className="flex-1 bg-transparent text-xs font-mono text-white outline-none placeholder:text-fuchsia-500/60"
-                placeholder="ENTER BUDDY CODE..."
-                value={searchQ}
-                onChange={e => setSearchQ(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleSearch()}
-                style={{ letterSpacing: "0.05em" }}
-              />
-              <button
-                onClick={handleSearch}
-                disabled={searching}
-                className="rounded-none bg-fuchsia-600 px-2 py-0.5 text-[10px] font-black text-white uppercase tracking-widest hover:bg-fuchsia-500 transition-colors disabled:opacity-50"
-                style={{ boxShadow: "2px 2px 0px #4c1d95" }}
-              >
-                {searching ? "…" : "GO"}
-              </button>
+              <button onClick={() => setShowMailbox(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors">✕</button>
+              <h3 className="text-lg font-black text-white mb-1">📬 Mailbox</h3>
+              <p className="text-xs text-zinc-500 mb-5">Friend requests &amp; connection status</p>
+
+              {incoming.length > 0 && (
+                <div className="mb-5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400 mb-2">Incoming Requests ({incoming.length})</p>
+                  <div className="space-y-2">
+                    {incoming.map(c => (
+                      <div key={c.id} className="rounded-xl border border-amber-500/25 bg-amber-950/20 p-3 flex items-center gap-3">
+                        <div className="h-10 w-10 shrink-0 rounded-full bg-amber-600/30 border border-amber-500/50 flex items-center justify-center text-sm font-black text-amber-200">
+                          {avatarLetter(c.buddyId)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-amber-100 truncate">#{c.buddyId.slice(-8)}</p>
+                          <p className="text-[10px] text-amber-500/80">Wants to be your buddy</p>
+                        </div>
+                        <button onClick={() => handleAccept(c.buddyId)} className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow transition-colors">
+                          Accept
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {outgoing.length > 0 && (
+                <div className="mb-5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-violet-400 mb-2">Sent Requests ({outgoing.length})</p>
+                  <div className="space-y-2">
+                    {outgoing.map(c => (
+                      <div key={c.id} className="rounded-xl border border-violet-500/20 bg-violet-950/15 p-3 flex items-center gap-3">
+                        <div className="h-10 w-10 shrink-0 rounded-full bg-violet-600/30 border border-violet-500/40 flex items-center justify-center text-sm font-black text-violet-200">
+                          {avatarLetter(c.buddyId)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-violet-100 truncate">#{c.buddyId.slice(-8)}</p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-amber-500/20 border border-amber-500/30 px-3 py-1 text-[10px] font-bold text-amber-300 uppercase tracking-wider">
+                          Pending
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {incoming.length === 0 && outgoing.length === 0 && (
+                <div className="py-8 text-center">
+                  <div className="text-3xl mb-2">📭</div>
+                  <p className="text-sm text-zinc-500">No pending requests.</p>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Profile Detail Modal */}
+      <AnimatePresence>
+        {selectedProfile && (
+          <ProfileDetailModal
+            profile={selectedProfile}
+            onClose={() => setSelectedProfile(null)}
+            onSendRequest={handleSendRequest}
+            requestingId={requestingId}
+          />
+        )}
+      </AnimatePresence>
+
+      <div className="flex flex-1 h-full overflow-hidden">
+        {/* LEFT PANEL (WhatsApp-style friends list) */}
+        <div className="w-full max-w-xs shrink-0 flex flex-col border-r border-white/5 bg-zinc-950 min-h-0 z-10 shadow-lg">
+          <div className="p-4 border-b border-white/5 bg-zinc-900/40">
+            <div className="flex items-center justify-between">
+              <h1 className="text-lg font-black text-white tracking-tight">Buddy Arena</h1>
+              {activeChatId && (
+                <button onClick={() => setActiveChatId(null)} className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors">
+                  ← Discover
+                </button>
+              )}
             </div>
-            {/* Search results */}
-            <AnimatePresence>
-              {searchResults.map(r => (
-                <motion.div
-                  key={r.userId}
-                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                  className="mt-2 rounded-xl border border-fuchsia-500/30 bg-fuchsia-950/20 p-3 flex items-center gap-3"
-                >
-                  <div className="h-9 w-9 shrink-0 rounded-full bg-fuchsia-600/30 border border-fuchsia-500/50 flex items-center justify-center text-xs font-black text-fuchsia-200">
-                    {avatarLetter(r.userId)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-white truncate">ID: {r.userId.slice(0, 12)}…</p>
-                    <p className="text-[10px] text-fuchsia-300">🔥 {r.streak} day streak</p>
-                  </div>
-                  <button
-                    onClick={() => handleSendRequest(r.userId)}
-                    disabled={requestingId === r.userId}
-                    className="shrink-0 rounded-lg bg-fuchsia-600/80 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-fuchsia-500 transition-colors disabled:opacity-50"
-                  >
-                    {requestingId === r.userId ? "…" : "Connect"}
-                  </button>
-                </motion.div>
-              ))}
-            </AnimatePresence>
           </div>
 
-          {/* Incoming requests */}
-          {incoming.length > 0 && (
-            <div className="px-4 mt-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80 mb-2">Pending Requests</p>
-              {incoming.map(c => (
-                <div key={c.id} className="mb-2 rounded-xl border border-amber-500/25 bg-amber-950/20 p-3 flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-amber-600/30 border border-amber-500/50 flex items-center justify-center text-xs font-black text-amber-200">
+          <div className="p-3">
+            <input
+              type="text"
+              placeholder="Search your buddies..."
+              value={friendFilter}
+              onChange={e => setFriendFilter(e.target.value)}
+              className="w-full rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:border-violet-500 outline-none"
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-2 pb-4 pt-1 space-y-1 custom-scroll">
+            {filteredFriends.length === 0 ? (
+              <div className="px-4 py-8 text-center text-xs text-zinc-500">
+                {friendFilter ? "No buddies match that search." : "No buddies yet — search by code to connect!"}
+              </div>
+            ) : (
+              filteredFriends.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => setActiveChatId(c.buddyId)}
+                  className={`w-full flex items-center gap-3 rounded-xl px-3 py-3 transition-all text-left group ${activeChatId === c.buddyId ? "bg-violet-600/20 border border-violet-500/30" : "hover:bg-white/5 border border-transparent"}`}
+                >
+                  <div className="h-11 w-11 shrink-0 rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center text-lg font-black text-white shadow-inner">
                     {avatarLetter(c.buddyId)}
                   </div>
-                  <p className="flex-1 text-xs text-amber-100 truncate">{c.buddyId.slice(0, 14)}…</p>
-                  <button onClick={() => handleAccept(c.buddyId)} className="rounded-lg bg-emerald-600/80 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-emerald-500">
-                    Accept
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Buddy list (chat mode) */}
-          {tab === "chat" && (
-            <div className="flex-1 overflow-y-auto mt-4 px-2">
-              {accepted.length === 0 ? (
-                <div className="px-4 py-6 text-center text-xs text-zinc-500">
-                  No learning buddies yet.<br />Switch to Discover to find matches!
-                </div>
-              ) : (
-                accepted.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => setActiveChatId(c.buddyId)}
-                    className={`w-full flex items-center gap-3 rounded-xl px-3 py-3 mb-1 transition-all text-left ${activeChatId === c.buddyId ? "bg-violet-600/20 border border-violet-400/30" : "hover:bg-white/5"}`}
-                  >
-                    <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center text-sm font-black text-white">
-                      {avatarLetter(c.buddyId)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white truncate">Buddy #{c.buddyId.slice(-4)}</p>
-                      <p className="text-[11px] text-zinc-500">Tap to chat</p>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
-
-          {/* Discover list */}
-          {tab === "discover" && (
-            <div className="flex-1 overflow-y-auto mt-4 px-2">
-              {recsLoading ? (
-                <div className="space-y-3 px-2">
-                  {[1,2,3].map(i => <div key={i} className="h-20 animate-pulse rounded-xl bg-violet-950/30" />)}
-                </div>
-              ) : recsError ? (
-                <div className="px-4 py-5 text-center">
-                  <p className="text-xs text-rose-300 leading-relaxed">{recsError}</p>
-                  <a href="/profile" className="mt-2 inline-block text-[10px] text-fuchsia-400 underline">Enable in Profile →</a>
-                </div>
-              ) : recs.length === 0 ? (
-                <p className="px-4 text-xs text-zinc-500 text-center mt-6">No AI matches yet. Complete more tasks to build your subject profile!</p>
-              ) : (
-                recs.map(rec => <DiscoverCard key={rec.userId} rec={rec} onRequest={handleSendRequest} requestingId={requestingId} />)
-              )}
-            </div>
-          )}
-
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">Buddy #{c.buddyId.slice(-6)}</p>
+                    <p className="text-xs text-zinc-400 truncate opacity-0 group-hover:opacity-100 transition-opacity">Tap to open chat</p>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
         </div>
 
-        {/* RIGHT PANEL: Chat or empty state */}
-        <div className="flex-1 flex flex-col bg-zinc-950/40 min-h-[calc(100vh-64px)]">
-          {tab === "chat" && activeChatId ? (
+        {/* RIGHT PANEL */}
+        <div className="flex-1 flex flex-col relative bg-[#09090b]">
+
+          {/* Mailbox Button — always visible top-right */}
+          <div className="absolute top-4 right-5 z-20">
+            <button
+              onClick={() => setShowMailbox(true)}
+              className="relative rounded-full bg-zinc-800/80 p-2.5 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors border border-white/5 backdrop-blur shadow"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+              {mailboxCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white ring-2 ring-zinc-950">
+                  {mailboxCount}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {activeChatId ? (
             <ChatPanel myId={myId} buddyId={activeChatId} />
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-10">
-              <div className="text-6xl animate-bounce">🤝</div>
-              <h2 className="text-2xl font-black text-white">
-                {tab === "discover" ? "Find Your Study Soulmate" : "Select a Buddy to Chat"}
-              </h2>
-              <p className="text-sm text-zinc-400 max-w-xs">
-                {tab === "discover"
-                  ? "Browse AI-recommended matches on the left, or enter a Buddy Code to connect directly."
-                  : "Click a learning buddy on the left to open your chat!"}
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+              <div className="h-24 w-24 rounded-full bg-zinc-900/80 border border-white/5 flex items-center justify-center text-4xl mb-4 shadow-xl">
+                💬
+              </div>
+              <h2 className="text-2xl font-black text-white tracking-tight mb-2">Buddy Arena</h2>
+              <p className="text-sm text-zinc-400 max-w-sm">
+                Select a friend from the left to start chatting, or use the global search bar at the top to find new people.
               </p>
             </div>
           )}
@@ -311,73 +268,68 @@ export function BuddyArenaPage() {
   );
 }
 
-// ── Discover Card ──────────────────────────────────────────
+// ── Profile Detail Modal ───────────────────────────────────
 
-function DiscoverCard({ rec, onRequest, requestingId }: { rec: BuddyRec; onRequest: (id: string) => void; requestingId: string | null }) {
-  const [expanded, setExpanded] = useState(false);
+function ProfileDetailModal({ profile, onClose, onSendRequest, requestingId }: {
+  profile: BuddyRec; onClose: () => void; onSendRequest: (id: string) => void; requestingId: string | null;
+}) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-      className="mb-2 rounded-xl border border-violet-500/20 bg-zinc-900/60 overflow-hidden"
-    >
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-white/3 transition-colors"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+        className="w-full max-w-sm rounded-2xl border border-violet-500/30 bg-zinc-900 shadow-2xl relative overflow-hidden"
+        onClick={e => e.stopPropagation()}
       >
-        <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-violet-700 to-fuchsia-600 flex items-center justify-center text-sm font-black text-white">
-          {avatarLetter(rec.userId)}
+        {/* Header gradient */}
+        <div className="h-24 bg-gradient-to-br from-violet-600 via-fuchsia-600 to-pink-500 relative">
+          <button onClick={onClose} className="absolute top-3 right-3 text-white/70 hover:text-white text-lg transition-colors">✕</button>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-xs font-bold text-white truncate">Buddy #{rec.userId.slice(-4)}</p>
-            <span className="shrink-0 text-[10px] font-black text-fuchsia-300 bg-fuchsia-500/15 border border-fuchsia-500/30 px-1.5 rounded">
-              {rec.matchScore}%
-            </span>
-          </div>
-          <p className="text-[10px] text-zinc-400 truncate">{rec.matchReason}</p>
-        </div>
-        <span className="text-zinc-600 text-xs">{expanded ? "▲" : "▼"}</span>
-      </button>
 
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="px-3 pb-3 space-y-2 border-t border-white/5 pt-3">
-              {rec.theyCanHelpYouWith.length > 0 && (
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-400/80 mb-1">They help you with</p>
-                  <div className="flex flex-wrap gap-1">
-                    {rec.theyCanHelpYouWith.map(s => (
-                      <span key={s} className="rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-200">{s}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {rec.youCanHelpThemWith.length > 0 && (
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-fuchsia-400/80 mb-1">You help them with</p>
-                  <div className="flex flex-wrap gap-1">
-                    {rec.youCanHelpThemWith.map(s => (
-                      <span key={s} className="rounded border border-fuchsia-500/30 bg-fuchsia-500/10 px-2 py-0.5 text-[10px] text-fuchsia-200">{s}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <button
-                onClick={() => onRequest(rec.userId)}
-                disabled={requestingId === rec.userId}
-                className="w-full mt-2 rounded-lg bg-violet-600 py-2 text-xs font-bold text-white hover:bg-violet-500 transition-colors disabled:opacity-50"
-              >
-                {requestingId === rec.userId ? "Sending…" : "Send Connection Request"}
-              </button>
+        <div className="px-6 pb-6 -mt-10 relative">
+          <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center text-2xl font-black text-white shadow-xl border-4 border-zinc-900">
+            {avatarLetter(profile.userId)}
+          </div>
+
+          <h3 className="mt-4 text-xl font-black text-white">Buddy #{profile.userId.slice(-6)}</h3>
+          <p className="text-xs font-mono text-zinc-500 mt-1 break-all">{profile.userId}</p>
+          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-fuchsia-500/20 border border-fuchsia-500/30 px-3 py-1">
+            <span className="text-xs font-bold text-fuchsia-300">{profile.matchScore}% Match</span>
+          </div>
+
+          <p className="mt-4 text-sm text-zinc-300 leading-relaxed">{profile.matchReason}</p>
+
+          {profile.theyCanHelpYouWith.length > 0 && (
+            <div className="mt-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mb-1.5">They Excel At</p>
+              <div className="flex flex-wrap gap-1.5">
+                {profile.theyCanHelpYouWith.map(s => (
+                  <span key={s} className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-300">{s}</span>
+                ))}
+              </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+          )}
+
+          {profile.youCanHelpThemWith.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-400 mb-1.5">You Can Help With</p>
+              <div className="flex flex-wrap gap-1.5">
+                {profile.youCanHelpThemWith.map(s => (
+                  <span key={s} className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[11px] font-semibold text-cyan-300">{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={() => onSendRequest(profile.userId)}
+            disabled={requestingId === profile.userId}
+            className="mt-6 w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-3 text-sm font-bold text-white shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {requestingId === profile.userId ? "Connecting…" : "🤝 Send Friend Request"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -389,7 +341,6 @@ function ChatPanel({ myId, buddyId }: { myId: string; buddyId: string }) {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  /** Poll every 2 seconds — both users see each other's messages */
   useEffect(() => {
     let active = true;
     async function poll() {
@@ -398,7 +349,7 @@ function ChatPanel({ myId, buddyId }: { myId: string; buddyId: string }) {
         if (!res.ok) return;
         const data = await res.json();
         if (active) setMessages(data.messages ?? []);
-      } catch { /* network blip — ignore */ }
+      } catch {}
     }
     void poll();
     const id = window.setInterval(() => void poll(), 2000);
@@ -420,7 +371,7 @@ function ChatPanel({ myId, buddyId }: { myId: string; buddyId: string }) {
         headers: authHeaders(),
         body: JSON.stringify({ text }),
       });
-    } catch { /* show nothing — poll will retry */ }
+    } catch {}
     setSending(false);
   }
 
@@ -428,61 +379,81 @@ function ChatPanel({ myId, buddyId }: { myId: string; buddyId: string }) {
     new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-zinc-950/60 relative">
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-5" style={{ backgroundSize: '20px 20px', backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)' }} />
+
       {/* Chat header */}
-      <div className="flex items-center gap-3 border-b border-white/5 bg-zinc-950/60 px-5 py-3">
-        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center text-sm font-black text-white">
-          {avatarLetter(buddyId)}
+      <div className="flex items-center justify-between border-b border-white/5 bg-zinc-900/80 backdrop-blur px-6 py-4 z-10 shadow-sm relative pr-24">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center text-sm font-black text-white shadow-lg">
+            {avatarLetter(buddyId)}
+          </div>
+          <div>
+            <p className="text-base font-bold text-white">Buddy #{buddyId.slice(-6)}</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <p className="text-xs font-semibold text-emerald-400">Connected</p>
+            </div>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-bold text-white">Buddy #{buddyId.slice(-6)}</p>
-          <p className="text-[10px] text-emerald-400">● Learning Buddy</p>
-        </div>
+        <button
+          className="p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors"
+          title="Share Notes / Files (Coming Soon!)"
+          onClick={() => alert("File sharing via Supabase coming in Phase 3!")}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+        </button>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 z-10 custom-scroll">
         {messages.length === 0 && (
-          <div className="text-center text-xs text-zinc-500 mt-8">
-            Say hi to your new study buddy! 👋
+          <div className="text-center mt-12 bg-zinc-900/70 border border-white/5 backdrop-blur-sm max-w-sm mx-auto p-6 rounded-3xl shadow-xl">
+            <div className="text-4xl mb-3">👋</div>
+            <h4 className="text-white font-bold mb-1">Send a message</h4>
+            <p className="text-zinc-400 text-sm">Say hi to your new learning buddy!</p>
           </div>
         )}
         {messages.map((msg: any) => {
           const isMe = msg.sender_id === myId;
           return (
             <div key={msg._id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[72%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${isMe ? "bg-violet-600 text-white rounded-br-sm" : "bg-zinc-800 text-zinc-100 rounded-bl-sm"}`}>
-                <p className="leading-relaxed">{msg.text}</p>
-                <p className={`text-[10px] mt-1 ${isMe ? "text-violet-200/70 text-right" : "text-zinc-500"}`}>
-                  {formatTime(msg.created_at)}
-                </p>
+              <div className={`max-w-[70%] rounded-2xl px-5 py-3 text-[15px] shadow-sm ${isMe ? "bg-violet-600 text-white rounded-br-sm shadow-violet-900/20" : "bg-zinc-800 text-zinc-100 rounded-bl-sm border border-white/5 shadow-black/40"}`}>
+                <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                <div className={`flex items-center gap-1 mt-1.5 justify-end ${isMe ? "text-violet-200/70" : "text-zinc-500"}`}>
+                  <p className="text-[10px] font-medium tracking-wide">{formatTime(msg.created_at)}</p>
+                  {isMe && (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                  )}
+                </div>
               </div>
             </div>
           );
         })}
-        <div ref={bottomRef} />
+        <div ref={bottomRef} className="h-4" />
       </div>
 
       {/* Input bar */}
-      <div className="border-t border-white/5 bg-zinc-950/70 px-4 py-3 flex items-center gap-3">
-        <input
-          className="flex-1 rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500 placeholder:text-zinc-500 transition-colors"
-          placeholder="Type a message…"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && !e.shiftKey && void send()}
-        />
-        <button
-          onClick={() => void send()}
-          disabled={!input.trim() || sending}
-          className="h-10 w-10 shrink-0 rounded-full bg-violet-600 flex items-center justify-center text-white hover:bg-violet-500 transition-colors disabled:opacity-40"
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 rotate-45">
-            <path d="M2 21L23 12 2 3v7l15 2-15 2z"/>
-          </svg>
-        </button>
+      <div className="bg-zinc-900/90 backdrop-blur border-t border-white/5 p-4 z-10">
+        <div className="flex items-center gap-3 max-w-4xl mx-auto bg-zinc-950 border border-zinc-800 focus-within:border-violet-500/50 focus-within:ring-2 focus-within:ring-violet-500/10 rounded-full pl-6 pr-2 py-1.5 transition-all shadow-inner">
+          <input
+            className="flex-1 bg-transparent text-[15px] text-white outline-none placeholder:text-zinc-500"
+            placeholder="Type your message..."
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && !e.shiftKey && void send()}
+          />
+          <button
+            onClick={() => void send()}
+            disabled={!input.trim() || sending}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white shadow-md hover:bg-violet-500 transition-colors disabled:opacity-40"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 ml-0.5">
+              <path d="M2 21L23 12 2 3v7l15 2-15 2z"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );
 }
-

@@ -43,6 +43,7 @@ export interface IUserProfile extends Document {
   lastBurnoutPredictionAdjustDate?: string;
   subjectMastery: SubjectMastery[];
   isLookingForBuddy: boolean;
+  syncCode?: string;
 }
 
 const SubjectMasterySchema = new Schema(
@@ -110,6 +111,7 @@ const UserProfileSchema = new Schema<IUserProfile>(
     lastBurnoutPredictionAdjustDate: { type: String, default: "" },
     subjectMastery: { type: [SubjectMasterySchema], default: [] },
     isLookingForBuddy: { type: Boolean, default: false },
+    syncCode: { type: String, unique: true, sparse: true },
   },
   { timestamps: true }
 );

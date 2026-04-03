@@ -1,10 +1,14 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useHud } from "@/context/HudContext";
 
 export function GameHUD() {
   const { state: g, loading } = useHud();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [params] = useSearchParams();
+  const searchQuery = params.get("q") || "";
 
   if (loading || !g) {
     return (
@@ -32,10 +36,30 @@ export function GameHUD() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-violet-500/25 bg-[#0c0518]/95 backdrop-blur-md">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <Link to="/" className="text-sm font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-violet-300 to-fuchsia-300">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-3">
+        <Link to="/" className="text-sm font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-violet-300 to-fuchsia-300 shrink-0">
           StudySync
         </Link>
+        
+        {/* Global Search Bar */}
+        <div className="ml-2 mr-auto hidden sm:flex flex-1 max-w-xs items-center gap-2 rounded-2xl border border-violet-500/20 bg-zinc-900/50 backdrop-blur-sm px-3 py-1.5 focus-within:border-violet-500 focus-within:ring-1 focus-within:ring-violet-500/20 transition-all shadow-inner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-zinc-500 shrink-0"><circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="m21 21-4.3-4.3"/></svg>
+          <input
+            className="w-full bg-transparent text-xs font-medium text-white outline-none placeholder:text-zinc-500"
+            placeholder="Search buddies..."
+            value={location.pathname === "/search" ? searchQuery : ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              navigate(`/search${val ? `?q=${encodeURIComponent(val)}` : ''}`, { replace: location.pathname === '/search' });
+            }}
+            onFocus={() => {
+              if (location.pathname !== '/search') {
+                navigate('/search');
+              }
+            }}
+          />
+        </div>
+
         <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
           {/* Companion streak chip */}
           {(() => {
@@ -91,12 +115,6 @@ export function GameHUD() {
             className="rounded-lg border border-cyan-500/40 px-2 py-1 text-cyan-200 hover:bg-cyan-950/40"
           >
             Study DNA
-          </Link>
-          <Link
-            to="/buddies"
-            className="rounded-lg border border-fuchsia-500/40 px-2 py-1 text-fuchsia-200 hover:bg-fuchsia-950/40"
-          >
-            Find Buddies
           </Link>
           <Link
             to="/profile"

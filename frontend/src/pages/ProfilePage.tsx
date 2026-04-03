@@ -133,7 +133,7 @@ export function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
+      <div className="space-y-6 animate-pulse px-4">
         <div className="h-8 w-48 rounded-xl bg-violet-900/40" />
         <div className="h-48 rounded-2xl bg-violet-950/30" />
         <div className="h-48 rounded-2xl bg-violet-950/30" />
@@ -142,15 +142,32 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="space-y-8 pb-20">
+    <div className="space-y-8 pb-32 max-w-2xl mx-auto px-4 mt-8">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-200 to-fuchsia-200">
-          My Profile
-        </h1>
-        <p className="mt-1 text-violet-400/70 text-sm">
-          {user?.email} · Manage your study identity and companion
-        </p>
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex sm:items-center justify-between flex-col sm:flex-row gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-200 to-fuchsia-200">
+            My Profile
+          </h1>
+          <p className="mt-1 text-violet-400/70 text-sm">
+            {user?.email} · Manage your study identity and companion
+          </p>
+        </div>
+        
+        {/* Sync Code Banner */}
+        <div className="flex flex-col items-start sm:items-end bg-fuchsia-950/20 border border-fuchsia-500/20 px-4 py-2 rounded-xl backdrop-blur-sm">
+          <span className="text-[10px] font-bold text-fuchsia-400/70 uppercase tracking-widest mb-0.5">Your Buddy Code</span>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-black font-mono text-fuchsia-100 tracking-wider drop-shadow-sm">{profile?.syncCode || "—"}</span>
+            <button 
+              onClick={() => { if(profile?.syncCode) navigator.clipboard.writeText(profile.syncCode); }} 
+              className="text-xs text-fuchsia-300 bg-white/5 hover:bg-white/10 px-2 py-1 rounded-md transition-colors"
+              title="Copy to clipboard"
+            >
+              Copy
+            </button>
+          </div>
+        </div>
       </motion.div>
 
       {/* Companion Section */}

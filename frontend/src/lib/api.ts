@@ -54,6 +54,7 @@ export type ServerProfile = {
     currentLevel: number;
   }[];
   isLookingForBuddy?: boolean;
+  syncCode?: string;
 };
 
 export async function fetchServerProfile(): Promise<
@@ -700,7 +701,7 @@ export async function fetchBuddyConnections(): Promise<{ connections: Array<{ id
   return res.json();
 }
 
-export async function searchBuddyByCode(code: string): Promise<{ results: Array<{ userId: string; companionType: string | null; streak: number }> }> {
+export async function searchBuddyByCode(code: string): Promise<{ results: Array<{ userId: string; syncCode: string; companionType: string | null; streak: number }> }> {
   const res = await fetch(`/api/buddies/search?q=${encodeURIComponent(code)}`, { headers: authHeaders() });
   if (!res.ok) throw new Error("Search failed");
   return res.json();

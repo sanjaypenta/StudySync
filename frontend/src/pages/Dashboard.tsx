@@ -37,6 +37,12 @@ function groupByDate(todos: Todo[]): Map<string, Todo[]> {
 
 const pillars = [
   {
+    to: "/buddies",
+    title: "Buddy arena",
+    desc: "Match & chat with study buddies.",
+    accent: "from-purple-600/25 to-pink-600/20 border-purple-500/35",
+  },
+  {
     to: "/calendar",
     title: "Calendar",
     desc: "Plan goals & spawn daily quests.",
