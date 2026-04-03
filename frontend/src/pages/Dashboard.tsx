@@ -41,6 +41,12 @@ const pillars = [
     accent: "from-violet-600/30 to-fuchsia-600/20 border-violet-500/40",
   },
   {
+    to: "/study-dna",
+    title: "Study DNA",
+    desc: "Your learning pattern, visualized.",
+    accent: "from-emerald-600/25 to-cyan-600/20 border-emerald-500/35",
+  },
+  {
     to: "/self-study",
     title: "Self-study",
     desc: "Per-task timers, XP on complete.",

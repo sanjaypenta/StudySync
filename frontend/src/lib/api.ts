@@ -301,6 +301,47 @@ export async function fetchTodosForDate(date: string): Promise<Todo[]> {
   return data.todos;
 }
 
+export type DnaStrengthLevel = "strong" | "steady" | "needs";
+
+export type DnaStrengthRow = {
+  subject: string;
+  score: number;
+  level: DnaStrengthLevel;
+};
+
+export type StudyDnaSummary = {
+  status: "learning" | "active";
+  lastUpdated: string;
+  confidence: number;
+  peakProductivity: {
+    label: string;
+    range: string;
+  };
+  focusDurationMinutes: number;
+  burnoutPattern: {
+    note: string;
+    risk: "green" | "yellow" | "red";
+  };
+  energyBehavior: {
+    note: string;
+    trend: number[];
+  };
+  consistency: {
+    daysPerWeek: number;
+    score: number;
+  };
+  strengths: DnaStrengthRow[];
+  smartInsights: string[];
+};
+
+export async function fetchStudyDnaSummary(): Promise<StudyDnaSummary> {
+  const res = await fetch("/api/study-dna/summary", { headers: authHeaders() });
+  if (!res.ok) throw new Error("Failed to load study DNA");
+  const data = (await res.json()) as { summary?: StudyDnaSummary };
+  if (!data.summary) throw new Error("Invalid study DNA response");
+  return data.summary;
+}
+
 export async function rebalanceTodos(
   date: string,
   orderedIds: string[]
