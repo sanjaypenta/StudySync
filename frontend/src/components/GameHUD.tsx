@@ -62,6 +62,12 @@ export function GameHUD() {
           >
             Stats
           </Link>
+          <Link
+            to="/study-dna"
+            className="rounded-lg border border-cyan-500/40 px-2 py-1 text-cyan-200 hover:bg-cyan-950/40"
+          >
+            Study DNA
+          </Link>
         </div>
       </div>
     </header>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   endStudySession,
   fetchActiveSession,
-  fetchTodosRange,
+  fetchTodosForDate,
   patchTodo,
   prioritizeTodos,
   startStudySession,
@@ -38,7 +38,13 @@ export function SelfStudyPage() {
   const { push } = useRewards();
   const { refresh, state: hudState } = useHud();
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const rangeTo = useMemo(() => addDaysYmd(today, 7), [today]);
+  const tomorrow = useMemo(() => addDaysYmd(today, 1), [today]);
+
+  const ENERGY_EXHAUSTED_THRESHOLD = 5;
+  const energyPercent = hudState?.energyPercent ?? null;
+  const energyNotExhausted = energyPercent == null ? false : energyPercent > ENERGY_EXHAUSTED_THRESHOLD;
+
+  const [activeDate, setActiveDate] = useState<string>(today);
 
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,27 +64,27 @@ export function SelfStudyPage() {
   const restoredSessionRef = useRef(false);
 
   const load = useCallback(
-    async (opts?: { skipPrioritize?: boolean }) => {
+    async (date: string, opts?: { skipPrioritize?: boolean }) => {
       setLoading(true);
       setErr(null);
       try {
         if (!opts?.skipPrioritize) {
-          await prioritizeTodos(today, rangeTo);
+          await prioritizeTodos(date, date);
         }
-        const list = await fetchTodosRange(today, rangeTo);
-        setTodos(list.filter((t) => t.status === "pending"));
+        const list = await fetchTodosForDate(date);
+        setTodos(list);
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Load failed");
       } finally {
         setLoading(false);
       }
     },
-    [today, rangeTo]
+    []
   );
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load(activeDate);
+  }, [activeDate, load]);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,7 +134,6 @@ export function SelfStudyPage() {
 
   const isPaused = pauses.length > 0 && pauses[pauses.length - 1].end === null;
 
-  const energyPercent = hudState?.energyPercent ?? null;
   const effectiveMood: SessionMood | null =
     studyMood ?? (sessionId ? "normal" : null);
 
@@ -158,10 +163,23 @@ export function SelfStudyPage() {
     resetSegment();
   }, [sessionId, startedAtMs, resetSegment]);
 
-  const displayTodos = useMemo(
-    () => sortTodosForMood(todos, studyMood),
-    [todos, studyMood]
+  const pendingTodos = useMemo(
+    () => todos.filter((t) => t.status === "pending"),
+    [todos]
   );
+
+  const displayTodos = useMemo(
+    () => sortTodosForMood(pendingTodos, studyMood),
+    [pendingTodos, studyMood]
+  );
+
+  const hasAnyTodosForActiveDate = todos.length > 0;
+  const clearedAllForActiveDate = hasAnyTodosForActiveDate && pendingTodos.length === 0;
+  const canUnlockTomorrow =
+    activeDate === today &&
+    clearedAllForActiveDate &&
+    energyNotExhausted &&
+    !sessionId;
 
   function openMoodGateForTodo(todoId: string) {
     if (sessionId && activeTodoId && activeTodoId !== todoId) {
@@ -272,7 +290,7 @@ export function SelfStudyPage() {
       setActiveTodoId(null);
       setPauses([]);
       setBreakBanner(null);
-      void load({ skipPrioritize: true });
+      void load(activeDate, { skipPrioritize: true });
     }
   }
 
@@ -342,10 +360,62 @@ export function SelfStudyPage() {
 
       {!loading && !displayTodos.length ? (
         <div className="rounded-2xl border border-dashed border-violet-500/30 bg-violet-950/10 px-6 py-12 text-center">
-          <p className="text-violet-200">No pending quests in the next week.</p>
-          <p className="mt-2 text-sm text-violet-400/80">
-            Add tasks from the calendar to populate this list.
+          <p className="text-violet-200">
+            {hasAnyTodosForActiveDate ? "All done for today." : "No quests scheduled for today."}
           </p>
+          <p className="mt-2 text-sm text-violet-400/80">
+            {hasAnyTodosForActiveDate
+              ? "Nice work. If you still have energy, you can continue." 
+              : "Add tasks from the calendar to populate today's list."}
+          </p>
+        </div>
+      ) : null}
+
+      {activeDate === today && clearedAllForActiveDate ? (
+        <div className="rounded-2xl border border-cyan-500/25 bg-cyan-950/20 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-cyan-100">
+              Today's quests cleared.
+            </p>
+            <p className="mt-1 text-xs text-cyan-200/70">
+              {sessionId
+                ? "Finish your current focus first."
+                : energyPercent == null
+                  ? "Syncing your energy bar…"
+                  : energyNotExhausted
+                    ? "Energy left — you can pull tomorrow's tasks early."
+                    : "Energy is exhausted — rest now to protect consistency."}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={!canUnlockTomorrow}
+            onClick={() => setActiveDate(tomorrow)}
+            className="rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            Continue to tomorrow
+          </button>
+        </div>
+      ) : null}
+
+      {activeDate !== today ? (
+        <div className="rounded-2xl border border-amber-500/25 bg-amber-950/15 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-amber-100">
+              You're previewing {activeDate}.
+            </p>
+            <p className="mt-1 text-xs text-amber-200/70">
+              These are pulled early because you finished today with energy left.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={Boolean(sessionId)}
+            onClick={() => setActiveDate(today)}
+            className="rounded-xl border border-amber-500/30 bg-black/20 px-4 py-2 text-sm font-semibold text-amber-100 disabled:opacity-50"
+          >
+            Back to today
+          </button>
         </div>
       ) : null}
 

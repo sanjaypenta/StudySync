@@ -10,6 +10,7 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { SelfStudyPage } from "./pages/SelfStudyPage";
 import { ProgressPage } from "./pages/ProgressPage";
+import { StudyDnaPage } from "./pages/StudyDnaPage";
 import { RequireOnboarding } from "./layout/RequireOnboarding";
 import { RequireAuth } from "./layout/RequireAuth";
 import { GameShellLayout } from "./layout/GameShellLayout";
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/self-study" element={<SelfStudyPage />} />
             <Route path="/progress" element={<ProgressPage />} />
+            <Route path="/study-dna" element={<StudyDnaPage />} />
             <Route path="/study-room" element={<StudyRoomLayout />}>
               <Route index element={<StudyRoomCreatePage />} />
               <Route path="join" element={<StudyRoomJoinPage />} />

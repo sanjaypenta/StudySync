@@ -19,6 +19,7 @@ import { registerStudyRoomSockets } from "./studyRoom/socketHandlers.js";
 import { authRouter } from "./routes/authRoutes.js";
 import { progressRouter } from "./routes/progressRoutes.js";
 import { gamificationRouter } from "./routes/gamificationRoutes.js";
+import { studyDnaRouter } from "./routes/studyDnaRoutes.js";
 
 const PORT = Number(process.env.PORT) || 4000;
 
@@ -86,6 +87,7 @@ app.use("/api/wellbeing", wellbeingRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/progress", progressRouter);
 app.use("/api/gamification", gamificationRouter);
+app.use("/api/study-dna", studyDnaRouter);
 app.use("/api/study-rooms", studyRoomsRouter);
 
 const httpServer = createServer(app);
