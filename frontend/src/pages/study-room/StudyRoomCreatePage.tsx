@@ -14,11 +14,20 @@ export function StudyRoomCreatePage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const trimmedTopic = topic.trim();
+    if (!file && trimmedTopic.length < 20) {
+      setError(
+        "Add a longer topic description and/or upload a PDF with extractable text (at least 20 characters total)."
+      );
+      return;
+    }
+
     const name = displayName.trim() || "Host";
     setLoading(true);
     try {
       const fd = new FormData();
-      fd.append("topic", topic.trim());
+      fd.append("topic", trimmedTopic);
       fd.append("questionsCount", String(questionsCount));
       if (file) fd.append("pdf", file);
       const res = await fetch("/api/study-rooms", {
@@ -31,7 +40,13 @@ export function StudyRoomCreatePage() {
         error?: string;
       };
       if (!res.ok) {
-        setError(data.error ?? "Could not create room");
+        if (res.status === 503) {
+          setError(
+            "Service unavailable (503). The backend API may be down or restarting — make sure the backend is running on http://localhost:4000."
+          );
+          return;
+        }
+        setError(data.error ?? `Could not create room (HTTP ${res.status})`);
         return;
       }
       if (!data.roomId || !data.hostKey) {
