@@ -2,10 +2,9 @@ import { Router } from "express";
 import multer from "multer";
 import { generatePlanWithGemini } from "../services/gemini.js";
 import {
-  mergeNotesAndPdfText,
-  truncateContext,
   truncateForMetaPreview,
 } from "../services/contextMerge.js";
+import { runRAGPipelineOnMerged } from "../services/ragPipeline.js";
 import { extractTextFromPdfBuffer } from "../services/pdfExtract.js";
 import type { BurnoutLevel, GoalType } from "../services/planDistributor.js";
 
@@ -114,11 +113,13 @@ plansRouter.post(
         }
       }
 
-      const merged = mergeNotesAndPdfText(
+      const goalForRetriever = `${taskTitle} ${subject} ${topics}`.trim();
+      const ragResult = runRAGPipelineOnMerged(
+        extractedPdf || undefined,
         pdfNotes || undefined,
-        extractedPdf || undefined
+        goalForRetriever
       );
-      const contextText = truncateContext(merged);
+      const contextText = ragResult.contextText;
 
       const burnout: BurnoutLevel = ["low", "medium", "high"].includes(
         String(burnoutLevel)
@@ -166,6 +167,7 @@ plansRouter.post(
           pdfNote,
           materialTextPreview: truncateForMetaPreview(contextText),
           effectiveTopics,
+          rag: ragResult.meta,
         },
       });
     } catch (e) {
