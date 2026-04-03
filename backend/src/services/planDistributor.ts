@@ -24,6 +24,8 @@ export interface PlanDay {
   date: string;
   hours: number;
   task: string;
+  topics?: string[];
+  difficulty?: string;
 }
 
 function parseYmd(s: string): Date {

@@ -135,7 +135,13 @@ General rules:
 
 Return ONLY JSON in this exact format:
 [
-  { "date": "YYYY-MM-DD", "hours": 1, "task": "specific label for that day" }
+  {
+    "date": "YYYY-MM-DD",
+    "hours": 1,
+    "task": "specific label for that day",
+    "topics": ["concept1", "concept2"],
+    "difficulty": "Easy/Medium/Hard"
+  }
 ]`;
 }
 
@@ -158,6 +164,8 @@ export function validatePlanDays(
       date: o.date,
       hours: Math.round(o.hours * 4) / 4,
       task: o.task.trim(),
+      topics: Array.isArray(o.topics) ? o.topics.map(String) : [],
+      difficulty: typeof o.difficulty === "string" ? o.difficulty : "Medium",
     });
   }
   return out;
