@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { UserProfileModel, type SubjectMastery } from "../models/UserProfileDoc.js";
 import { UserConnection } from "../models/UserConnection.js";
+import { ChatMessage, conversationId } from "../models/ChatMessage.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
 export const buddiesRouter = Router();
@@ -205,3 +206,72 @@ buddiesRouter.get("/connections", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch connections" });
   }
 });
+
+// ── Chat (MongoDB-backed) ──────────────────────────────────
+
+/** GET /api/buddies/chat/:buddyId — fetch last 100 messages */
+buddiesRouter.get("/chat/:buddyId", async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const { buddyId } = req.params;
+
+    // Verify they are connected
+    const conn = await UserConnection.findOne({
+      $or: [
+        { requester_id: userId, recipient_id: buddyId, status: "accepted" },
+        { requester_id: buddyId, recipient_id: userId, status: "accepted" },
+      ],
+    }).lean();
+    if (!conn) {
+      res.status(403).json({ error: "Not connected to this user" });
+      return;
+    }
+
+    const cid = conversationId(userId, buddyId);
+    const messages = await ChatMessage.find({ conversation_id: cid })
+      .sort({ created_at: 1 })
+      .limit(100)
+      .lean();
+
+    res.json({ messages });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch messages" });
+  }
+});
+
+/** POST /api/buddies/chat/:buddyId — send a message */
+buddiesRouter.post("/chat/:buddyId", async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const { buddyId } = req.params;
+    const { text } = req.body as { text: string };
+
+    if (!text?.trim()) {
+      res.status(400).json({ error: "Message cannot be empty" });
+      return;
+    }
+
+    const conn = await UserConnection.findOne({
+      $or: [
+        { requester_id: userId, recipient_id: buddyId, status: "accepted" },
+        { requester_id: buddyId, recipient_id: userId, status: "accepted" },
+      ],
+    }).lean();
+    if (!conn) {
+      res.status(403).json({ error: "Not connected to this user" });
+      return;
+    }
+
+    const msg = await ChatMessage.create({
+      conversation_id: conversationId(userId, buddyId),
+      sender_id: userId,
+      recipient_id: buddyId,
+      text: text.trim(),
+    });
+
+    res.json({ message: msg });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to send message" });
+  }
+});
+

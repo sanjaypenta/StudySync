@@ -34,31 +34,10 @@ type SearchResult = {
   streak: number;
 };
 
-type ChatMessage = {
-  id: string;
-  senderId: string;
-  text: string;
-  ts: number;
-};
-
 // ── Helpers ────────────────────────────────────────────────
 
 function avatarLetter(uid: string) {
   return uid.substring(0, 2).toUpperCase();
-}
-
-function chatKey(myId: string, buddyId: string) {
-  return `studysync_chat_${[myId, buddyId].sort().join("_")}`;
-}
-
-function loadMessages(myId: string, buddyId: string): ChatMessage[] {
-  const raw = localStorage.getItem(chatKey(myId, buddyId));
-  if (!raw) return [];
-  try { return JSON.parse(raw) as ChatMessage[]; } catch { return []; }
-}
-
-function saveMessages(myId: string, buddyId: string, msgs: ChatMessage[]) {
-  localStorage.setItem(chatKey(myId, buddyId), JSON.stringify(msgs));
 }
 
 // ── Main Page ──────────────────────────────────────────────
@@ -402,33 +381,50 @@ function DiscoverCard({ rec, onRequest, requestingId }: { rec: BuddyRec; onReque
   );
 }
 
-// ── Chat Panel ─────────────────────────────────────────────
+// ── Chat Panel (MongoDB-backed) ────────────────────────────
 
 function ChatPanel({ myId, buddyId }: { myId: string; buddyId: string }) {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => loadMessages(myId, buddyId));
+  const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  /** Poll every 2 seconds — both users see each other's messages */
+  useEffect(() => {
+    let active = true;
+    async function poll() {
+      try {
+        const res = await fetch(`/api/buddies/chat/${buddyId}`, { headers: authHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (active) setMessages(data.messages ?? []);
+      } catch { /* network blip — ignore */ }
+    }
+    void poll();
+    const id = window.setInterval(() => void poll(), 2000);
+    return () => { active = false; window.clearInterval(id); };
+  }, [buddyId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  function send() {
+  async function send() {
     const text = input.trim();
-    if (!text) return;
-    const msg: ChatMessage = {
-      id: crypto.randomUUID(),
-      senderId: myId,
-      text,
-      ts: Date.now(),
-    };
-    const updated = [...messages, msg];
-    setMessages(updated);
-    saveMessages(myId, buddyId, updated);
+    if (!text || sending) return;
+    setSending(true);
     setInput("");
+    try {
+      await fetch(`/api/buddies/chat/${buddyId}`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ text }),
+      });
+    } catch { /* show nothing — poll will retry */ }
+    setSending(false);
   }
 
-  const formatTime = (ts: number) =>
+  const formatTime = (ts: string | Date) =>
     new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   return (
@@ -451,14 +447,14 @@ function ChatPanel({ myId, buddyId }: { myId: string; buddyId: string }) {
             Say hi to your new study buddy! 👋
           </div>
         )}
-        {messages.map(msg => {
-          const isMe = msg.senderId === myId;
+        {messages.map((msg: any) => {
+          const isMe = msg.sender_id === myId;
           return (
-            <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[72%] rounded-2xl px-4 py-2.5 text-sm ${isMe ? "bg-violet-600 text-white rounded-br-sm" : "bg-zinc-800 text-zinc-100 rounded-bl-sm"}`}>
+            <div key={msg._id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[72%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${isMe ? "bg-violet-600 text-white rounded-br-sm" : "bg-zinc-800 text-zinc-100 rounded-bl-sm"}`}>
                 <p className="leading-relaxed">{msg.text}</p>
                 <p className={`text-[10px] mt-1 ${isMe ? "text-violet-200/70 text-right" : "text-zinc-500"}`}>
-                  {formatTime(msg.ts)}
+                  {formatTime(msg.created_at)}
                 </p>
               </div>
             </div>
@@ -474,11 +470,11 @@ function ChatPanel({ myId, buddyId }: { myId: string; buddyId: string }) {
           placeholder="Type a message…"
           value={input}
           onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
+          onKeyDown={e => e.key === "Enter" && !e.shiftKey && void send()}
         />
         <button
-          onClick={send}
-          disabled={!input.trim()}
+          onClick={() => void send()}
+          disabled={!input.trim() || sending}
           className="h-10 w-10 shrink-0 rounded-full bg-violet-600 flex items-center justify-center text-white hover:bg-violet-500 transition-colors disabled:opacity-40"
         >
           <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 rotate-45">
@@ -489,3 +485,4 @@ function ChatPanel({ myId, buddyId }: { myId: string; buddyId: string }) {
     </div>
   );
 }
+
