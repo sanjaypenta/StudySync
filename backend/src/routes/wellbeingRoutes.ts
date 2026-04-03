@@ -77,12 +77,12 @@ wellbeingRouter.post("/recalculate", async (req, res) => {
 
       sessionMinutes += activeMins;
       
-      let rate = 0.5; // Normal
-      if (s.session_mood === "tired") rate = 1.0;
-      else if (s.session_mood === "motivated") rate = 0.25;
+      let rate = 1.5; // Normal — 1% drain per 40 seconds
+      if (s.session_mood === "tired") rate = 3.0;      // drains fast
+      else if (s.session_mood === "motivated") rate = 0.75; // efficient
       
       const drain = activeMins * rate;
-      const recover = restMins * 0.5; // Active pause inside session
+      const recover = restMins * 1.0; // pauses recover at same speed as normal drain
       
       activeDrain += (drain - recover);
       cursorTimeMs = Math.max(cursorTimeMs, sessionEndMs);
