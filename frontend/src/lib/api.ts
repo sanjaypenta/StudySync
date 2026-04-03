@@ -662,3 +662,25 @@ export async function fetchWellbeingIntervention(): Promise<{
     message: string;
   };
 }
+
+export type BurnoutPredictionSummary = {
+  risk: {
+    level: "low" | "moderate" | "high";
+    score01: number;
+    label: string;
+    confidence: "low" | "medium" | "high";
+  };
+  timeToBurnout: { message: string };
+  trend: { state: "increasing" | "stable" | "decreasing"; message: string };
+  warnings: string[];
+  tips: string[];
+  adjustment: { applied: boolean; moved: number; message: string };
+  riskHistory: Array<{ date: string; score01: number }>;
+  updatedAt: string;
+};
+
+export async function fetchBurnoutPredictionSummary(): Promise<BurnoutPredictionSummary | null> {
+  const res = await fetch("/api/burnout-prediction/summary", { headers: authHeaders() });
+  if (!res.ok) return null;
+  return (await res.json()) as BurnoutPredictionSummary;
+}

@@ -9,6 +9,7 @@ import {
 } from "@/lib/api";
 import { SortableDaySection } from "@/components/SortableDaySection";
 import { BurnoutPanel } from "@/components/BurnoutPanel";
+import { BurnoutPredictionPanel } from "@/components/BurnoutPredictionPanel";
 import { FocusSessionBar } from "@/components/FocusSessionBar";
 import { useAuth } from "@/context/AuthContext";
 import { useRewards } from "@/context/RewardContext";
@@ -209,6 +210,7 @@ export function Dashboard() {
       <div className="mt-8 space-y-4">
         <FocusSessionBar />
         <BurnoutPanel />
+        <BurnoutPredictionPanel />
       </div>
 
       <div className="mt-8 flex flex-wrap justify-center gap-3">

@@ -1,10 +1,9 @@
 import type { RoomState } from "./roomStore.js";
 import type { LeaderboardRow, MCQ } from "./types.js";
+import { answersEquivalent } from "./answerMatch.js";
 
 function isCorrect(q: MCQ, selected: string): boolean {
-  const a = selected.trim().toLowerCase();
-  const ok = q.answer.trim().toLowerCase();
-  return a === ok;
+  return answersEquivalent(selected, q.answer);
 }
 
 export function computeLeaderboard(room: RoomState): LeaderboardRow[] {
