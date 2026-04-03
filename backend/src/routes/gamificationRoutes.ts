@@ -21,36 +21,8 @@ gamificationRouter.get("/state", async (req, res) => {
     let energyPct =
       b?.score != null ? Math.max(0, Math.min(100, b.score)) : 100;
 
-    // Account for any active session drain in real-time
-    const { StudySession } = await import("../models/StudySession.js");
-    const activeSession = await StudySession.findOne({ user_id: userId, outcome: "pending" }).lean();
-    if (activeSession && activeSession.started_at) {
-      let activeMins = 0;
-      let restMins = 0;
-      let lastStart = activeSession.started_at.getTime();
-      const now = Date.now();
-      
-      const pauses = activeSession.pauses || [];
-      for (const p of pauses) {
-         if (!p.started_at) continue;
-         const pStart = p.started_at.getTime();
-         const pEnd = p.ended_at ? p.ended_at.getTime() : now;
-         activeMins += Math.max(0, (pStart - lastStart) / 60000);
-         restMins += Math.max(0, (pEnd - pStart) / 60000);
-         lastStart = pEnd;
-      }
-      activeMins += Math.max(0, (now - lastStart) / 60000);
-
-      if (activeMins > 0 || restMins > 0) {
-        let drainRate = 0.5; // Normal
-        if (activeSession.session_mood === "tired") drainRate = 1.0;
-        else if (activeSession.session_mood === "motivated") drainRate = 0.25;
-        
-        const drain = activeMins * drainRate;
-        const recover = restMins * 0.5;
-        energyPct = Math.max(0, Math.min(100, energyPct - drain + recover));
-      }
-    }
+    // Active session drain/recovery is already accurately calculated into
+    // b.score by the `recalculateWellbeing` engine right before this is called.
 
     res.json({
       streak: { current: stats.current_streak, longest: stats.longest_streak },

@@ -6,6 +6,7 @@ import { StudyRoomJoinPage } from "./pages/study-room/StudyRoomJoinPage";
 import { StudyRoomPage } from "./pages/study-room/StudyRoomPage";
 import { OnboardingPage } from "./pages/onboarding/OnboardingPage";
 import { LoginPage } from "./pages/LoginPage";
+import { LandingPage } from "./pages/LandingPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { SelfStudyPage } from "./pages/SelfStudyPage";
@@ -22,6 +23,7 @@ function StudyRoomLayout() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/welcome" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />

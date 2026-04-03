@@ -14,6 +14,9 @@ export interface ITodo extends Document {
   sort_order: number;
   slot_start: string;
   slot_end: string;
+  is_boss: boolean;
+  boss_hp: number;
+  current_hp: number;
 }
 
 const TodoSchema = new Schema<ITodo>(
@@ -36,6 +39,9 @@ const TodoSchema = new Schema<ITodo>(
     sort_order: { type: Number, default: 0 },
     slot_start: { type: String, default: "" },
     slot_end: { type: String, default: "" },
+    is_boss: { type: Boolean, default: false },
+    boss_hp: { type: Number, default: 0 },
+    current_hp: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

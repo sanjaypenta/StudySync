@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import mongoose from "mongoose";
 import { Todo, type ITodo } from "../models/Todo.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
@@ -214,6 +214,9 @@ function serializeTodos(list: ITodo[]): Array<{
     sort_order: c.sort_order ?? 0,
     slot_start: c.slot_start ?? "",
     slot_end: c.slot_end ?? "",
+    is_boss: c.is_boss ?? false,
+    boss_hp: c.boss_hp ?? 0,
+    current_hp: c.current_hp ?? 0,
   }));
 }
 
@@ -236,6 +239,9 @@ todosRouter.patch("/:id", async (req, res) => {
       sort_order,
       slot_start,
       slot_end,
+      is_boss,
+      boss_hp,
+      current_hp,
     } = req.body ?? {};
 
     if (hours !== undefined) {
@@ -308,6 +314,23 @@ todosRouter.patch("/:id", async (req, res) => {
         return;
       }
       updates.slot_end = slot_end;
+    }
+    if (is_boss !== undefined) {
+      updates.is_boss = Boolean(is_boss);
+    }
+    if (boss_hp !== undefined) {
+      if (typeof boss_hp !== "number" || !Number.isFinite(boss_hp)) {
+        res.status(400).json({ error: "Invalid boss_hp" });
+        return;
+      }
+      updates.boss_hp = boss_hp;
+    }
+    if (current_hp !== undefined) {
+      if (typeof current_hp !== "number" || !Number.isFinite(current_hp)) {
+        res.status(400).json({ error: "Invalid current_hp" });
+        return;
+      }
+      updates.current_hp = current_hp;
     }
 
 

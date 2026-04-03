@@ -171,7 +171,37 @@ sessionsRouter.patch("/:id/end", async (req, res) => {
 
     let reward = undefined;
 
-    if (outcome === "completed") {
+    // ----- BOSS FIGHT DAMAGE CALCULATION -----
+    if (doc.started_at && doc.ended_at && doc.todo_ids?.length) {
+      const td = await Todo.findOne({ _id: doc.todo_ids[0], user_id: userId });
+      if (td && td.is_boss) {
+        let activeMins = 0;
+        let lastStart = doc.started_at.getTime();
+        for (const p of doc.pauses || []) {
+          if (!p.started_at) continue;
+          const pStart = p.started_at.getTime();
+          const pEnd = p.ended_at ? p.ended_at.getTime() : doc.ended_at.getTime();
+          activeMins += Math.max(0, (pStart - lastStart) / 60000);
+          lastStart = pEnd;
+        }
+        activeMins += Math.max(0, (doc.ended_at.getTime() - lastStart) / 60000);
+
+        const damage = Math.round(activeMins) * 100;
+        const newHp = Math.max(0, (td.current_hp ?? 0) - damage);
+        
+        td.current_hp = newHp;
+        
+        if (newHp <= 0 && td.status !== "completed") {
+           td.status = "completed";
+           // Massive boss kill reward
+           reward = await recordMeaningfulActivity(userId, 50); 
+        }
+        await td.save();
+      }
+    }
+    // ------------------------------------------
+
+    if (outcome === "completed" && !reward) {
       reward = await recordMeaningfulActivity(userId, 10);
     }
 

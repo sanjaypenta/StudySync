@@ -294,6 +294,16 @@ export function SelfStudyPage() {
     }
   }
 
+  async function convertToBoss(id: string, hours: number) {
+    try {
+      const hp = Math.max(1, hours * 60 * 100);
+      await patchTodo(id, { is_boss: true, boss_hp: hp, current_hp: hp });
+      void load(activeDate, { skipPrioritize: true });
+    } catch {
+      setErr("Failed to summon Boss");
+    }
+  }
+
   return (
     <div className="space-y-8">
       <SessionMoodGate
@@ -448,15 +458,97 @@ export function SelfStudyPage() {
       <ul className="space-y-3">
         {displayTodos.map((t) => {
           const isActive = activeTodoId === t.id && sessionId;
+          
+          let bossHpPercent = 100;
+          let displayHp = t.current_hp ?? 0;
+          if (t.is_boss) {
+            const currentDamage = isActive && !isPaused ? (elapsed / 60000) * 100 : (isActive ? (elapsed / 60000) * 100 : 0);
+            displayHp = Math.max(0, Math.round((t.current_hp ?? 0) - currentDamage));
+            bossHpPercent = Math.max(0, Math.min(100, (displayHp / (t.boss_hp || 1)) * 100));
+          }
+
+          if (isActive && t.is_boss) {
+            return (
+              <li
+                key={t.id}
+                className="relative overflow-hidden rounded-2xl border-2 border-red-500/40 bg-zinc-950 p-6 shadow-[0_0_30px_-5px_rgba(239,68,68,0.2)]"
+              >
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-xl font-black text-red-400 uppercase tracking-widest">{t.task_title}</h3>
+                      <p className="text-xs font-bold text-red-500/60 uppercase">Boss Encounter in Progress</p>
+                    </div>
+                    {displayHp <= 0 && (
+                      <div className="animate-pulse px-3 py-1 bg-red-500/20 border border-red-500 rounded text-red-400 font-black tracking-widest text-sm">
+                        BOSS SLAIN
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-1 mb-6">
+                    <div className="flex justify-between text-xs font-bold text-red-300">
+                      <span>HP</span>
+                      <span className="font-mono tabular-nums">{displayHp.toLocaleString()} / {(t.boss_hp ?? 0).toLocaleString()}</span>
+                    </div>
+                    <div className="h-4 w-full rounded-full bg-zinc-900 border border-red-900/50 overflow-hidden relative shadow-inner">
+                      <div 
+                        className="h-full bg-gradient-to-r from-red-700 to-red-400 transition-all duration-1000 ease-out"
+                        style={{ width: `${bossHpPercent}%` }}
+                      >
+                         <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.1)_50%,transparent_75%)] bg-[length:20px_20px] animate-[slide_1s_linear_infinite]" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className={`font-mono text-xl tabular-nums font-bold ${isPaused ? 'text-amber-400 animate-pulse' : 'text-red-300 shadow-red-500/50'}`}>
+                      {formatElapsed(elapsed)}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {isPaused ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleResume()}
+                          className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-amber-500/20"
+                        >
+                          Resume Battle
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => void handlePause()}
+                          className="rounded-xl border border-rose-500/30 hover:bg-rose-950/40 px-4 py-2 text-sm font-bold text-rose-300"
+                        >
+                          Fall Back (Pause)
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-emerald-500/20"
+                        onClick={() => void stopFocus("completed")}
+                      >
+                        Claim Victory
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            );
+          }
+
           return (
             <li
               key={t.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-500/20 bg-zinc-950/60 px-4 py-4 shadow-inner"
+              className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl border ${t.is_boss ? 'border-red-500/30 bg-red-950/10' : 'border-violet-500/20 bg-zinc-950/60'} px-5 py-4 shadow-inner`}
             >
-              <div>
-                <p className="font-medium text-violet-50">{t.task_title}</p>
-                <p className="text-xs text-violet-400">
-                  {t.subject} · {t.date} · {t.hours}h
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className={`font-medium ${t.is_boss ? 'text-red-200' : 'text-violet-50'}`}>{t.task_title}</p>
+                  {t.is_boss && <span className="px-1.5 py-0.5 rounded border border-red-500/50 text-[10px] uppercase font-black tracking-widest text-red-400 bg-red-500/10">Boss</span>}
+                </div>
+                <p className={`text-xs ${t.is_boss ? 'text-red-400/70' : 'text-violet-400'} mt-0.5`}>
+                  {t.subject} · {t.date} · {t.hours}h {t.is_boss && `· HP: ${t.current_hp}/${t.boss_hp}`}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -466,13 +558,24 @@ export function SelfStudyPage() {
                   </span>
                 ) : null}
                 {!isActive ? (
-                  <button
-                    type="button"
-                    className="rounded-xl bg-gradient-to-r from-cyan-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white"
-                    onClick={() => openMoodGateForTodo(t.id)}
-                  >
-                    Start focus
-                  </button>
+                  <>
+                    {!t.is_boss && (
+                      <button
+                        type="button"
+                        className="rounded-xl border border-red-900/50 text-red-400/80 hover:bg-red-950/30 px-3 py-2 text-xs font-semibold"
+                        onClick={() => void convertToBoss(t.id, t.hours)}
+                      >
+                        Summon Boss
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${t.is_boss ? 'bg-gradient-to-r from-red-600 to-rose-700 shadow-lg shadow-red-500/20' : 'bg-gradient-to-r from-cyan-600 to-violet-600'}`}
+                      onClick={() => openMoodGateForTodo(t.id)}
+                    >
+                      {t.is_boss ? 'Engage Boss' : 'Start focus'}
+                    </button>
+                  </>
                 ) : (
                   <>
                     {isPaused ? (

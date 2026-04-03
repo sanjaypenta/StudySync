@@ -37,16 +37,26 @@ wellbeingRouter.post("/recalculate", async (req, res) => {
     const sessions = await StudySession.find({
       user_id: userId,
       started_at: { $gte: new Date(dayStart), $lte: new Date(dayEnd) },
-    });
+    }).sort({ started_at: 1 });
     const nowMs = Date.now();
     let sessionMinutes = 0;
     let activeDrain = 0;
     
+    let cursorTimeMs = dayStart;
+    
     for (const s of sessions) {
       if (!s.started_at) continue;
+
+      // PASSIVE RECOVERY: any time passed between last session end (or day start) and THIS session start
+      const startMs = s.started_at.getTime();
+      if (startMs > cursorTimeMs) {
+         const passiveRestMins = (startMs - cursorTimeMs) / 60000;
+         activeDrain -= passiveRestMins * 0.5; 
+      }
+
       let activeMins = 0;
       let restMins = 0;
-      let lastStart = s.started_at.getTime();
+      let lastStart = startMs;
       const sessionEndMs = s.ended_at ? s.ended_at.getTime() : Math.min(nowMs, dayEnd);
       
       const pauses = s.pauses || [];
@@ -72,11 +82,16 @@ wellbeingRouter.post("/recalculate", async (req, res) => {
       else if (s.session_mood === "motivated") rate = 0.25;
       
       const drain = activeMins * rate;
-      const recover = restMins * 0.5;
+      const recover = restMins * 0.5; // Active pause inside session
       
-      // we reduce activeDrain by the recover amount. In burnoutScore, energy -= activeDrain.
-      // So lowering activeDrain gives the user their energy back!
       activeDrain += (drain - recover);
+      cursorTimeMs = Math.max(cursorTimeMs, sessionEndMs);
+    }
+    
+    // Add passive recovery from the last session end until right now
+    if (nowMs > cursorTimeMs && nowMs <= dayEnd) {
+       const passiveRestMins = (nowMs - cursorTimeMs) / 60000;
+       activeDrain -= passiveRestMins * 0.5;
     }
     const plannedMinutes = todos.reduce((a, t) => a + t.hours * 60, 0);
     const sessionRatio =

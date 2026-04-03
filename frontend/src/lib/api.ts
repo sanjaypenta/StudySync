@@ -131,6 +131,9 @@ export interface Todo {
   sort_order: number;
   slot_start: string;
   slot_end: string;
+  is_boss: boolean;
+  boss_hp: number;
+  current_hp: number;
 }
 
 export async function generatePlan(body: {
@@ -456,6 +459,9 @@ export async function patchTodo(
       | "sort_order"
       | "slot_start"
       | "slot_end"
+      | "is_boss"
+      | "boss_hp"
+      | "current_hp"
     >
   >
 ): Promise<{ todo: Todo; reward?: RewardEvent }> {

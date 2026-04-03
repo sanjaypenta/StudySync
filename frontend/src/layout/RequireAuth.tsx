@@ -10,6 +10,6 @@ export function RequireAuth() {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/welcome" replace />;
   return <Outlet />;
 }
