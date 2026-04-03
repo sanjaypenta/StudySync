@@ -1,4 +1,4 @@
-﻿import { config as loadEnv } from "dotenv";
+import { config as loadEnv } from "dotenv";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
@@ -22,6 +22,7 @@ import { progressRouter } from "./routes/progressRoutes.js";
 import { gamificationRouter } from "./routes/gamificationRoutes.js";
 import { studyDnaRouter } from "./routes/studyDnaRoutes.js";
 import { burnoutPredictionRouter } from "./routes/burnoutPredictionRoutes.js";
+import { buddiesRouter } from "./routes/buddiesRoutes.js";
 
 const PORT = Number(process.env.PORT) || 4000;
 
@@ -92,6 +93,7 @@ app.use("/api/gamification", gamificationRouter);
 app.use("/api/study-dna", studyDnaRouter);
 app.use("/api/burnout-prediction", burnoutPredictionRouter);
 app.use("/api/study-rooms", studyRoomsRouter);
+app.use("/api/buddies", buddiesRouter);
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {

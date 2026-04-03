@@ -93,6 +93,12 @@ export function GameHUD() {
             Study DNA
           </Link>
           <Link
+            to="/buddies"
+            className="rounded-lg border border-fuchsia-500/40 px-2 py-1 text-fuchsia-200 hover:bg-fuchsia-950/40"
+          >
+            Find Buddies
+          </Link>
+          <Link
             to="/profile"
             className="flex items-center justify-center w-8 h-8 rounded-full border border-violet-500/40 bg-violet-950/40 text-violet-300 hover:bg-violet-900/60 transition-all font-bold text-sm"
             title="My Profile"

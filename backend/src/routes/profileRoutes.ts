@@ -28,6 +28,8 @@ function serialize(p: {
   companion_type: "leaf" | "fire" | "water" | null;
   study_streak: number;
   last_study_date: string;
+  subjectMastery: any[];
+  isLookingForBuddy: boolean;
 }) {
   return {
     userId: p.user_id,
@@ -52,6 +54,8 @@ function serialize(p: {
     companion_type: p.companion_type ?? null,
     study_streak: p.study_streak ?? 0,
     last_study_date: p.last_study_date ?? "",
+    subjectMastery: p.subjectMastery ?? [],
+    isLookingForBuddy: p.isLookingForBuddy ?? false,
   };
 }
 
@@ -92,6 +96,9 @@ profileRouter.patch("/", async (req, res) => {
 
     if (typeof body.onboardingComplete === "boolean") {
       updates.onboardingComplete = body.onboardingComplete;
+    }
+    if (typeof body.isLookingForBuddy === "boolean") {
+      updates.isLookingForBuddy = body.isLookingForBuddy;
     }
     if (body.screenTime && typeof body.screenTime === "object") {
       const st = body.screenTime as Record<string, unknown>;

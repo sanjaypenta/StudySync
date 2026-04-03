@@ -7,6 +7,7 @@ import {
   patchServerProfile,
   type ServerProfile,
 } from "@/lib/api";
+import { SubjectMasteryPanel } from "@/components/SubjectMasteryPanel";
 
 type CompanionType = "leaf" | "fire" | "water";
 
@@ -76,6 +77,7 @@ export function ProfilePage() {
   const [stressFactors, setStressFactors] = useState<string[]>([]);
   const [wakeTime, setWakeTime] = useState("07:00");
   const [sleepTime, setSleepTime] = useState("23:00");
+  const [isLookingForBuddy, setIsLookingForBuddy] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -92,6 +94,7 @@ export function ProfilePage() {
         setWakeTime(p.wakeTime);
         setSleepTime(p.sleepTime);
         setCompanionType(p.companion_type ?? null);
+        setIsLookingForBuddy(p.isLookingForBuddy ?? false);
       }
       setLoading(false);
     })();
@@ -112,6 +115,7 @@ export function ProfilePage() {
         stressFactors,
         wakeTime,
         sleepTime,
+        isLookingForBuddy,
       };
       if (!companionChoiceLocked && companionType) {
         patch.companion_type = companionType;
@@ -385,6 +389,32 @@ export function ProfilePage() {
           </div>
         </div>
       </Card>
+
+      {/* Subject Tracking & Buddy Opt-in */}
+      <div className="space-y-4">
+        <SectionHeader title="Subject Mastery & Social" subtitle="Track your strengths and opt into the AI study buddy matching" />
+        <SubjectMasteryPanel profile={profile} />
+        
+        <div className="rounded-2xl border border-violet-500/20 bg-zinc-950/60 p-5 mt-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-violet-200">Looking for a Study Buddy?</h3>
+            <p className="text-xs text-violet-400/70 mt-1">Allow the AI to match you with users who complement your strengths.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsLookingForBuddy(!isLookingForBuddy)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              isLookingForBuddy ? "bg-emerald-500" : "bg-zinc-700"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                isLookingForBuddy ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
 
       {/* Account Info (read-only) */}
       <Card>

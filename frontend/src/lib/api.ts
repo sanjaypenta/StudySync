@@ -47,6 +47,13 @@ export type ServerProfile = {
   companion_type?: "leaf" | "fire" | "water" | null;
   study_streak?: number;
   last_study_date?: string;
+  subjectMastery?: {
+    subject: string;
+    hoursStudied: number;
+    tasksCompleted: number;
+    currentLevel: number;
+  }[];
+  isLookingForBuddy?: boolean;
 };
 
 export async function fetchServerProfile(): Promise<
@@ -80,7 +87,8 @@ export async function patchServerProfile(
     sleepQuality?: "poor" | "ok" | "good";
     stressFactors?: string[];
     weeklyStudyHoursTarget?: number;
-    companion_type?: "leaf" | "fire" | "water";
+    companion_type?: "leaf" | "fire" | "water" | null;
+    isLookingForBuddy?: boolean;
   }>
 ): Promise<ServerProfile> {
   const res = await fetch("/api/profile", {
@@ -683,4 +691,29 @@ export async function fetchBurnoutPredictionSummary(): Promise<BurnoutPrediction
   const res = await fetch("/api/burnout-prediction/summary", { headers: authHeaders() });
   if (!res.ok) return null;
   return (await res.json()) as BurnoutPredictionSummary;
+}
+
+// ── Buddy / Social ─────────────────────────────────────────
+export async function fetchBuddyConnections(): Promise<{ connections: Array<{ id: string; buddyId: string; status: string; isIncomingRequest: boolean }> }> {
+  const res = await fetch("/api/buddies/connections", { headers: authHeaders() });
+  if (!res.ok) throw new Error("Failed to fetch connections");
+  return res.json();
+}
+
+export async function searchBuddyByCode(code: string): Promise<{ results: Array<{ userId: string; companionType: string | null; streak: number }> }> {
+  const res = await fetch(`/api/buddies/search?q=${encodeURIComponent(code)}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Search failed");
+  return res.json();
+}
+
+export async function sendBuddyRequest(targetId: string): Promise<{ status: string }> {
+  const res = await fetch(`/api/buddies/request/${targetId}`, { method: "POST", headers: authHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+
+export async function acceptBuddyRequest(targetId: string): Promise<void> {
+  const res = await fetch(`/api/buddies/accept/${targetId}`, { method: "POST", headers: authHeaders() });
+  if (!res.ok) throw new Error("Accept failed");
 }

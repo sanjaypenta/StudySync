@@ -6,6 +6,7 @@ import { UserProfileModel } from "../models/UserProfileDoc.js";
 import { BurnoutDaily } from "../models/BurnoutDaily.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { recordMeaningfulActivity } from "../services/gamification.js";
+import { incrementSubjectMastery } from "../services/subjectMastery.js";
 import { generateBurnoutSessionTip } from "../services/burnoutTip.js";
 
 export const sessionsRouter = Router();
@@ -195,6 +196,7 @@ sessionsRouter.patch("/:id/end", async (req, res) => {
            td.status = "completed";
            // Massive boss kill reward
            reward = await recordMeaningfulActivity(userId, 50); 
+           await incrementSubjectMastery(userId, td.subject, td.hours);
         }
         await td.save();
       }

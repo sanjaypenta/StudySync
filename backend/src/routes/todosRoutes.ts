@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { Todo, type ITodo } from "../models/Todo.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { recordMeaningfulActivity } from "../services/gamification.js";
+import { incrementSubjectMastery } from "../services/subjectMastery.js";
 import { applyDailyPrioritization } from "../services/dailyPrioritize.js";
 import { BurnoutDaily } from "../models/BurnoutDaily.js";
 import { runAutoRescue } from "../services/autoRescue.js";
@@ -358,6 +359,7 @@ todosRouter.patch("/:id", async (req, res) => {
       doc.status === "completed"
     ) {
       reward = await recordMeaningfulActivity(userId, 5);
+      await incrementSubjectMastery(userId, doc.subject, doc.hours);
     }
 
     res.json({

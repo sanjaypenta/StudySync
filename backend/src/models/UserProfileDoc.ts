@@ -8,6 +8,13 @@ export interface DayBlock {
   end: string;
 }
 
+export interface SubjectMastery {
+  subject: string;
+  hoursStudied: number;
+  tasksCompleted: number;
+  currentLevel: number;
+}
+
 export interface IUserProfile extends Document {
   user_id: string;
   onboardingComplete: boolean;
@@ -34,8 +41,19 @@ export interface IUserProfile extends Document {
   last_study_date: string;
   /** Internal: prevents repeated auto-adjust loops when risk is increasing. */
   lastBurnoutPredictionAdjustDate?: string;
+  subjectMastery: SubjectMastery[];
+  isLookingForBuddy: boolean;
 }
 
+const SubjectMasterySchema = new Schema(
+  {
+    subject: { type: String, required: true },
+    hoursStudied: { type: Number, default: 0 },
+    tasksCompleted: { type: Number, default: 0 },
+    currentLevel: { type: Number, default: 1 },
+  },
+  { _id: false }
+);
 
 const DayBlockSchema = new Schema(
   {
@@ -90,6 +108,8 @@ const UserProfileSchema = new Schema<IUserProfile>(
     study_streak: { type: Number, default: 0 },
     last_study_date: { type: String, default: "" },
     lastBurnoutPredictionAdjustDate: { type: String, default: "" },
+    subjectMastery: { type: [SubjectMasterySchema], default: [] },
+    isLookingForBuddy: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
