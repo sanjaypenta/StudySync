@@ -7,6 +7,7 @@ import { UserProfileModel } from "../models/UserProfileDoc.js";
 import { computeBurnoutScore } from "../services/burnoutScore.js";
 import { adjustWellnessScore } from "../services/profileWellness.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
+import { calcEnergyFromSessions } from "../services/energyCalc.js";
 
 export const wellbeingRouter = Router();
 wellbeingRouter.use(authMiddleware);
@@ -38,61 +39,10 @@ wellbeingRouter.post("/recalculate", async (req, res) => {
       user_id: userId,
       started_at: { $gte: new Date(dayStart), $lte: new Date(dayEnd) },
     }).sort({ started_at: 1 });
-    const nowMs = Date.now();
-    let sessionMinutes = 0;
-    let activeDrain = 0;
-    
-    let cursorTimeMs = dayStart;
-    
-    for (const s of sessions) {
-      if (!s.started_at) continue;
-
-      // PASSIVE RECOVERY: any time passed between last session end (or day start) and THIS session start
-      const startMs = s.started_at.getTime();
-      if (startMs > cursorTimeMs) {
-         const passiveRestMins = (startMs - cursorTimeMs) / 60000;
-         activeDrain -= passiveRestMins * 0.5; 
-      }
-
-      let activeMins = 0;
-      let restMins = 0;
-      let lastStart = startMs;
-      const sessionEndMs = s.ended_at ? s.ended_at.getTime() : Math.min(nowMs, dayEnd);
-      
-      const pauses = s.pauses || [];
-      for (const p of pauses) {
-         if (!p.started_at) continue;
-         const pStart = p.started_at.getTime();
-         const pEnd = p.ended_at ? p.ended_at.getTime() : sessionEndMs;
-         if (pStart <= sessionEndMs) {
-           activeMins += Math.max(0, (pStart - lastStart) / 60000);
-           const clampedPEnd = Math.min(pEnd, sessionEndMs);
-           restMins += Math.max(0, (clampedPEnd - pStart) / 60000);
-           lastStart = clampedPEnd;
-         }
-      }
-      if (lastStart < sessionEndMs) {
-        activeMins += Math.max(0, (sessionEndMs - lastStart) / 60000);
-      }
-
-      sessionMinutes += activeMins;
-      
-      let rate = 1.5; // Normal — 1% drain per 40 seconds
-      if (s.session_mood === "tired") rate = 3.0;      // drains fast
-      else if (s.session_mood === "motivated") rate = 0.75; // efficient
-      
-      const drain = activeMins * rate;
-      const recover = restMins * 1.0; // pauses recover at same speed as normal drain
-      
-      activeDrain += (drain - recover);
-      cursorTimeMs = Math.max(cursorTimeMs, sessionEndMs);
-    }
-    
-    // Add passive recovery from the last session end until right now
-    if (nowMs > cursorTimeMs && nowMs <= dayEnd) {
-       const passiveRestMins = (nowMs - cursorTimeMs) / 60000;
-       activeDrain -= passiveRestMins * 0.5;
-    }
+    const { activeDrain, activeMinutes: sessionMinutes } = calcEnergyFromSessions(
+      sessions as Parameters<typeof calcEnergyFromSessions>[0],
+      { breakRecoveryRatePerMin: 2.0 }
+    );
     const plannedMinutes = todos.reduce((a, t) => a + t.hours * 60, 0);
     const sessionRatio =
       plannedMinutes <= 0 ? 0.6 : Math.min(1, sessionMinutes / plannedMinutes);

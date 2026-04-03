@@ -5,6 +5,7 @@ import { BurnoutDaily } from "../models/BurnoutDaily.js";
 import { UserProfileModel } from "../models/UserProfileDoc.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { getOrCreateStats, tierFromPoints } from "../services/gamification.js";
+import { calcEnergyFromSessions } from "../services/energyCalc.js";
 
 export const gamificationRouter = Router();
 gamificationRouter.use(authMiddleware);
@@ -16,64 +17,18 @@ function getEvolution(streak: number): number {
   return -1;
 }
 
-/** Calculate live energy from today's sessions (same logic as wellbeingRoutes) */
-function calcLiveEnergy(sessions: Array<{
-  started_at: Date;
-  ended_at?: Date | null;
-  session_mood?: string | null;
-  pauses?: Array<{ started_at: Date; ended_at?: Date | null }>;
-}>): number {
-  const today = new Date().toISOString().slice(0, 10);
-  const dayStart = new Date(today + "T00:00:00Z").getTime();
-  const dayEnd   = new Date(today + "T23:59:59Z").getTime();
-  const nowMs    = Date.now();
-
-  let activeDrain = 0;
-  // Start cursor at first session — no pre-session recovery credit
-  let cursorTimeMs = sessions.length > 0 ? sessions[0].started_at.getTime() : nowMs;
-
-  for (const s of sessions) {
-    if (!s.started_at) continue;
-    const startMs = s.started_at.getTime();
-    // passive recovery between sessions
-    if (startMs > cursorTimeMs) {
-      activeDrain -= ((startMs - cursorTimeMs) / 60000) * 0.5;
-    }
-    const sessionEndMs = s.ended_at
-      ? s.ended_at.getTime()
-      : Math.min(nowMs, dayEnd);
-
-    let activeMins = 0;
-    let restMins = 0;
-    let lastStart = startMs;
-    for (const p of s.pauses ?? []) {
-      if (!p.started_at) continue;
-      const pStart = p.started_at.getTime();
-      const pEnd   = p.ended_at ? p.ended_at.getTime() : sessionEndMs;
-      if (pStart <= sessionEndMs) {
-        activeMins += Math.max(0, (pStart - lastStart) / 60000);
-        restMins   += Math.max(0, (Math.min(pEnd, sessionEndMs) - pStart) / 60000);
-        lastStart   = Math.min(pEnd, sessionEndMs);
-      }
-    }
-    if (lastStart < sessionEndMs) {
-      activeMins += Math.max(0, (sessionEndMs - lastStart) / 60000);
-    }
-
-    let rate = 1.5;
-    if (s.session_mood === "tired")     rate = 3.0;
-    if (s.session_mood === "motivated") rate = 0.75;
-
-    activeDrain += activeMins * rate - restMins * 1.0;
-    cursorTimeMs = Math.max(cursorTimeMs, sessionEndMs);
-  }
-
-  // passive recovery after last session until now
-  if (nowMs > cursorTimeMs && nowMs <= dayEnd) {
-    activeDrain -= ((nowMs - cursorTimeMs) / 60000) * 0.5;
-  }
-
-  return Math.max(0, Math.min(100, Math.round(100 - activeDrain)));
+/** Calculate live energy from today's sessions.
+ * Rules: idle stays constant, breaks recharge, mood scales drain.
+ */
+function calcLiveEnergy(
+  sessions: Array<{
+    started_at: Date;
+    ended_at?: Date | null;
+    session_mood?: string | null;
+    pauses?: Array<{ started_at: Date; ended_at?: Date | null }>;
+  }>
+): number {
+  return calcEnergyFromSessions(sessions, { breakRecoveryRatePerMin: 2.0 }).energyPercent;
 }
 
 gamificationRouter.get("/state", async (req, res) => {

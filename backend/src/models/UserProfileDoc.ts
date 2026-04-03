@@ -32,6 +32,8 @@ export interface IUserProfile extends Document {
   companion_type: "leaf" | "fire" | "water" | null;
   study_streak: number;
   last_study_date: string;
+  /** Internal: prevents repeated auto-adjust loops when risk is increasing. */
+  lastBurnoutPredictionAdjustDate?: string;
 }
 
 
@@ -87,6 +89,7 @@ const UserProfileSchema = new Schema<IUserProfile>(
     },
     study_streak: { type: Number, default: 0 },
     last_study_date: { type: String, default: "" },
+    lastBurnoutPredictionAdjustDate: { type: String, default: "" },
   },
   { timestamps: true }
 );
