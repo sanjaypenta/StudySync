@@ -60,12 +60,31 @@ export function useStudyRoomSocket(
   const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [feedback, setFeedback] = useState<FeedbackPayload | null>(null);
 
+  const socketBaseUrl = (() => {
+    const fromEnv = (import.meta as any).env?.VITE_BACKEND_URL as
+      | string
+      | undefined;
+    if (typeof fromEnv === "string" && fromEnv.trim()) return fromEnv.trim();
+
+    // In dev, prefer hitting the backend directly (avoids flaky WS proxy issues,
+    // and allows joining from another device on the LAN when using host IP).
+    if ((import.meta as any).env?.DEV && typeof window !== "undefined") {
+      const proto = window.location.protocol;
+      const host = window.location.hostname;
+      return `${proto}//${host}:4000`;
+    }
+
+    // In prod (or unknown env), default to same-origin.
+    return undefined;
+  })();
+
   useEffect(() => {
     if (!roomId?.trim() || !username?.trim()) return;
 
-    const socket = io({
+    const socket = io(socketBaseUrl, {
       path: "/socket.io",
       transports: ["websocket", "polling"],
+      withCredentials: true,
     });
     socketRef.current = socket;
 
@@ -81,6 +100,13 @@ export function useStudyRoomSocket(
 
     socket.on("connect", onConnect);
     socket.on("disconnect", () => setConnected(false));
+
+    socket.on("connect_error", () => {
+      setConnected(false);
+      setError(
+        "Could not connect to the study server. Make sure the backend is running and reachable."
+      );
+    });
 
     socket.on("study_error", (p: { message?: string }) => {
       setError(p?.message ?? "Something went wrong");
@@ -153,10 +179,11 @@ export function useStudyRoomSocket(
 
     return () => {
       socket.off("connect", onConnect);
+      socket.off("connect_error");
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [roomId, username, hostKey]);
+  }, [roomId, username, hostKey, socketBaseUrl]);
 
   const startQuiz = useCallback(() => {
     if (!roomId?.trim()) return;

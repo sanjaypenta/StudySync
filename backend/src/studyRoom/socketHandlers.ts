@@ -33,7 +33,9 @@ export function registerStudyRoomSockets(io: Server): void {
         username?: string;
         hostKey?: string;
       }) => {
-        const roomId = payload.roomId?.trim();
+        const roomId = payload.roomId
+          ? payload.roomId.replace(/\D/g, "").slice(0, 6)
+          : undefined;
         const username = payload.username?.trim();
         if (!roomId || !username) {
           socket.emit("study_error", { message: "roomId and username required" });
@@ -81,7 +83,9 @@ export function registerStudyRoomSockets(io: Server): void {
     );
 
     socket.on("start_quiz", async (payload: { roomId?: string }) => {
-      const roomId = payload.roomId?.trim();
+      const roomId = payload.roomId
+        ? payload.roomId.replace(/\D/g, "").slice(0, 6)
+        : undefined;
       if (!roomId) {
         socket.emit("study_error", { message: "roomId required" });
         return;
@@ -146,7 +150,9 @@ export function registerStudyRoomSockets(io: Server): void {
         questionIndex?: number;
         answer?: string;
       }) => {
-        const roomId = payload.roomId?.trim();
+        const roomId = payload.roomId
+          ? payload.roomId.replace(/\D/g, "").slice(0, 6)
+          : undefined;
         const qIdx = payload.questionIndex;
         const answer =
           typeof payload.answer === "string" ? payload.answer.trim() : "";
