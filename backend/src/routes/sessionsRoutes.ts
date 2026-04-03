@@ -201,6 +201,38 @@ sessionsRouter.patch("/:id/end", async (req, res) => {
     }
     // ------------------------------------------
 
+    // ----- STREAK UPDATE -----
+    if (outcome === "completed") {
+      try {
+        const profile = await UserProfileModel.findOne({ user_id: userId });
+        if (profile) {
+          const todayStr = new Date().toISOString().slice(0, 10);
+          const last = profile.last_study_date ?? "";
+          if (last === todayStr) {
+            // Already fed today — do nothing
+          } else if (last) {
+            const lastDate = new Date(last + "T00:00:00Z");
+            const todayDate = new Date(todayStr + "T00:00:00Z");
+            const diffDays = Math.round((todayDate.getTime() - lastDate.getTime()) / 86400000);
+            if (diffDays === 1) {
+              profile.study_streak = (profile.study_streak ?? 0) + 1;
+            } else {
+              // Streak broken — reset to 1
+              profile.study_streak = 1;
+            }
+          } else {
+            // First ever session
+            profile.study_streak = 1;
+          }
+          profile.last_study_date = todayStr;
+          await profile.save();
+        }
+      } catch (e) {
+        console.error("Streak update failed:", e);
+      }
+    }
+    // -------------------------
+
     if (outcome === "completed" && !reward) {
       reward = await recordMeaningfulActivity(userId, 10);
     }

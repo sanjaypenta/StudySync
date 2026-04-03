@@ -13,6 +13,7 @@ import { FocusSessionBar } from "@/components/FocusSessionBar";
 import { useAuth } from "@/context/AuthContext";
 import { useRewards } from "@/context/RewardContext";
 import { useHud } from "@/context/HudContext";
+import { CompanionCard } from "@/components/CompanionCard";
 
 function addDaysYmd(ymd: string, days: number): string {
   const d = new Date(ymd + "T12:00:00Z");
@@ -63,7 +64,7 @@ const pillars = [
 export function Dashboard() {
   const { user, logout } = useAuth();
   const { push } = useRewards();
-  const { refresh: refreshHud } = useHud();
+  const { state: hudState, refresh: refreshHud } = useHud();
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const rangeFrom = useMemo(() => addDaysYmd(today, -28), [today]);
   const rangeTo = useMemo(() => addDaysYmd(today, 7), [today]);
@@ -160,6 +161,10 @@ export function Dashboard() {
         >
           Log out
         </button>
+      </div>
+
+      <div className="mt-6">
+        <CompanionCard companion={hudState?.companion ?? null} />
       </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3">

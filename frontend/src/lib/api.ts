@@ -44,6 +44,9 @@ export type ServerProfile = {
   sleepQuality?: "poor" | "ok" | "good";
   stressFactors?: string[];
   weeklyStudyHoursTarget?: number;
+  companion_type?: "leaf" | "fire" | "water" | null;
+  study_streak?: number;
+  last_study_date?: string;
 };
 
 export async function fetchServerProfile(): Promise<
@@ -77,6 +80,7 @@ export async function patchServerProfile(
     sleepQuality?: "poor" | "ok" | "good";
     stressFactors?: string[];
     weeklyStudyHoursTarget?: number;
+    companion_type?: "leaf" | "fire" | "water";
   }>
 ): Promise<ServerProfile> {
   const res = await fetch("/api/profile", {
@@ -569,6 +573,11 @@ export type GamificationState = {
   tier: string;
   burnout: { state: string; label: string; score?: number };
   energyPercent: number;
+  companion: {
+    type: "leaf" | "fire" | "water" | null;
+    streak: number;
+    evolution: number; // -1 = locked, 0 = base, 1 = evo1, 2 = evo2
+  } | null;
 };
 
 export async function fetchGamificationState(): Promise<GamificationState | null> {

@@ -11,6 +11,7 @@ import { setOnboardingCompleteLocal } from "@/lib/onboardingStorage";
 import { OnboardingEnergyStep } from "./OnboardingEnergyStep";
 
 const STEPS = [
+  "Choose companion",
   "Screen time",
   "Study preference",
   "Daily schedule",
@@ -63,6 +64,7 @@ export function OnboardingPage() {
   const [stressFactors, setStressFactors] = useState<string[]>([]);
   const [weeklyStudyHoursTarget, setWeeklyStudyHoursTarget] = useState(10);
   const [interestsText, setInterestsText] = useState("");
+  const [companionType, setCompanionType] = useState<"leaf" | "fire" | "water" | null>(null);
 
   const [mobileHours, setMobileHours] = useState(3);
   const [laptopHours, setLaptopHours] = useState(4);
@@ -124,6 +126,7 @@ export function OnboardingPage() {
           .map((s) => s.trim())
           .filter(Boolean),
         preferredStudyStyle: loadProfile().preferredStudyStyle,
+        ...(companionType ? { companion_type: companionType } : {}),
       });
       const prev = loadProfile();
       saveProfile({
@@ -163,7 +166,45 @@ export function OnboardingPage() {
           Welcome to StudySync
         </h1>
 
+        {/* Step 0 — Choose Companion */}
         {step === 0 && (
+          <div className="mt-6 space-y-4">
+            <p className="text-sm text-violet-300/80">
+              Choose your study companion — this is permanent and will evolve as your streak grows!
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {([
+                { type: "leaf" as const, emoji: "🌿", name: "Leafy", desc: "Leaf Type", bg: "border-emerald-500/40 bg-emerald-950/30 hover:bg-emerald-950/50", sel: "ring-2 ring-emerald-400 border-emerald-400" },
+                { type: "fire" as const, emoji: "🔥", name: "Blaze", desc: "Fire Type", bg: "border-orange-500/40 bg-orange-950/30 hover:bg-orange-950/50", sel: "ring-2 ring-orange-400 border-orange-400" },
+                { type: "water" as const, emoji: "💧", name: "Tide", desc: "Water Type", bg: "border-cyan-500/40 bg-cyan-950/30 hover:bg-cyan-950/50", sel: "ring-2 ring-cyan-400 border-cyan-400" },
+              ]).map((c) => (
+                <button
+                  key={c.type}
+                  type="button"
+                  onClick={() => setCompanionType(c.type)}
+                  className={`flex flex-col items-center gap-2 rounded-2xl border p-4 transition-all duration-200 ${c.bg} ${
+                    companionType === c.type ? c.sel : ""
+                  }`}
+                >
+                  <img
+                    src={`/media/${c.type}-base.png`}
+                    alt={c.name}
+                    className="w-16 h-16 object-contain"
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                  <p className="text-sm font-bold text-white">{c.name}</p>
+                  <p className="text-[11px] text-white/50">{c.desc}</p>
+                </button>
+              ))}
+            </div>
+            {!companionType && (
+              <p className="text-center text-xs text-rose-400/80">Pick a companion to continue!</p>
+            )}
+          </div>
+        )}
+
+        {/* Step 1 — Screen time */}
+        {step === 1 && (
           <div className="mt-8 space-y-4">
             <p className="text-sm text-zinc-600">
               Average daily screen time (hours). Split between phone and
@@ -200,7 +241,8 @@ export function OnboardingPage() {
           </div>
         )}
 
-        {step === 1 && (
+        {/* Step 2 — Study preference */}
+        {step === 2 && (
           <div className="mt-8 space-y-3">
             <p className="text-sm text-zinc-600">
               How do you prefer to study most of the time?
@@ -236,7 +278,8 @@ export function OnboardingPage() {
           </div>
         )}
 
-        {step === 2 && (
+        {/* Step 3 — Daily schedule */}
+        {step === 3 && (
           <div className="mt-8 space-y-4">
             <p className="text-sm text-zinc-600">
               Map a typical day: wake, sleep, and a few blocks (classes, meals,
@@ -339,7 +382,8 @@ export function OnboardingPage() {
           </div>
         )}
 
-        {step === 3 && (
+        {/* Step 4 — Energy & stress */}
+        {step === 4 && (
           <OnboardingEnergyStep
             burnoutLevel={burnoutLevel}
             setBurnoutLevel={setBurnoutLevel}
@@ -354,7 +398,8 @@ export function OnboardingPage() {
           />
         )}
 
-        {step === 4 && (
+        {/* Step 5 — Review */}
+        {step === 5 && (
           <div className="mt-8 space-y-4">
             <p className="text-sm text-violet-200/90">
               Your day map (approximate). Confirm to finish setup.
@@ -396,9 +441,9 @@ export function OnboardingPage() {
           {step < STEPS.length - 1 ? (
             <button
               type="button"
-              disabled={saving}
+              disabled={saving || (step === 0 && !companionType)}
               onClick={() => setStep((s) => s + 1)}
-              className="rounded-xl bg-zinc-900 px-5 py-2 text-sm font-medium text-white"
+              className="rounded-xl bg-zinc-900 px-5 py-2 text-sm font-medium text-white disabled:opacity-40"
             >
               Next
             </button>

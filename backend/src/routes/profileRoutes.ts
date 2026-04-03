@@ -25,6 +25,9 @@ function serialize(p: {
   sleepQuality: "poor" | "ok" | "good";
   stressFactors: string[];
   weeklyStudyHoursTarget: number;
+  companion_type: "leaf" | "fire" | "water" | null;
+  study_streak: number;
+  last_study_date: string;
 }) {
   return {
     userId: p.user_id,
@@ -46,6 +49,9 @@ function serialize(p: {
     sleepQuality: p.sleepQuality ?? "ok",
     stressFactors: p.stressFactors ?? [],
     weeklyStudyHoursTarget: p.weeklyStudyHoursTarget ?? 10,
+    companion_type: p.companion_type ?? null,
+    study_streak: p.study_streak ?? 0,
+    last_study_date: p.last_study_date ?? "",
   };
 }
 
@@ -129,6 +135,14 @@ profileRouter.patch("/", async (req, res) => {
     }
     if (typeof body.weeklyStudyHoursTarget === "number") {
       updates.weeklyStudyHoursTarget = body.weeklyStudyHoursTarget;
+    }
+    // companion choice — permanent but set during onboarding
+    if (body.companion_type === "leaf" || body.companion_type === "fire" || body.companion_type === "water") {
+      const existing = await UserProfileModel.findOne({ user_id: userId });
+      // Only set if not already chosen (permanent)
+      if (!existing?.companion_type) {
+        updates.companion_type = body.companion_type;
+      }
     }
 
     const doc = await UserProfileModel.findOneAndUpdate(

@@ -1,4 +1,4 @@
-﻿import mongoose, { Schema, type Document } from "mongoose";
+import mongoose, { Schema, type Document } from "mongoose";
 
 /** Time block on the daily map (HH:mm strings). */
 export interface DayBlock {
@@ -29,6 +29,9 @@ export interface IUserProfile extends Document {
   sleepQuality: "poor" | "ok" | "good";
   stressFactors: string[];
   weeklyStudyHoursTarget: number;
+  companion_type: "leaf" | "fire" | "water" | null;
+  study_streak: number;
+  last_study_date: string;
 }
 
 
@@ -77,6 +80,13 @@ const UserProfileSchema = new Schema<IUserProfile>(
     },
     stressFactors: { type: [String], default: [] },
     weeklyStudyHoursTarget: { type: Number, default: 10, min: 1, max: 80 },
+    companion_type: {
+      type: String,
+      enum: ["leaf", "fire", "water", null],
+      default: null,
+    },
+    study_streak: { type: Number, default: 0 },
+    last_study_date: { type: String, default: "" },
   },
   { timestamps: true }
 );

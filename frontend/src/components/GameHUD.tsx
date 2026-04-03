@@ -1,8 +1,10 @@
-﻿import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import { useHud } from "@/context/HudContext";
 
 export function GameHUD() {
   const { state: g, loading } = useHud();
+  const { user } = useAuth();
 
   if (loading || !g) {
     return (
@@ -35,11 +37,33 @@ export function GameHUD() {
           StudySync
         </Link>
         <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
-          <div className="rounded-xl border border-orange-500/30 bg-orange-950/50 px-3 py-1.5 text-orange-100">
-            <span className="text-orange-300/80">Streak </span>
-            <span className="font-mono font-bold">{g.streak.current}</span>
-            <span className="text-orange-400/60"> / {g.streak.longest}</span>
-          </div>
+          {/* Companion streak chip */}
+          {(() => {
+            const c = g.companion;
+            const isLocked = !c || !c.type || c.evolution === -1;
+            const spriteMap: Record<string, string[]> = {
+              leaf: ["/media/leaf-base.png", "/media/leaf-evo1.png", "/media/leaf-evo2.png"],
+              fire: ["/media/fire-base.png", "/media/fire-evo1.png", "/media/fire-evo2.png"],
+              water: ["/media/water-base.png", "/media/water-evo1.png", "/media/water-evo2.png"],
+            };
+            const src = c?.type && c.evolution >= 0 ? spriteMap[c.type]?.[c.evolution] : null;
+            return (
+              <div className="flex items-center gap-1.5 rounded-xl border border-orange-500/30 bg-orange-950/50 px-2.5 py-1.5 text-orange-100">
+                {isLocked ? (
+                  <span className="text-base leading-none select-none">🥚</span>
+                ) : (
+                  <img
+                    src={src ?? ""}
+                    alt="companion"
+                    className="w-6 h-6 object-contain"
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                )}
+                <span className="text-orange-300/80 text-xs">🔥</span>
+                <span className="font-mono font-bold text-xs">{c?.streak ?? g.streak.current}</span>
+              </div>
+            );
+          })()}
           <div className="rounded-xl border border-amber-500/30 bg-amber-950/40 px-3 py-1.5 text-amber-100">
             <span className="text-amber-200/80">{g.tier}</span>
             <span className="ml-2 font-mono text-amber-50">{g.points} XP</span>
@@ -67,6 +91,13 @@ export function GameHUD() {
             className="rounded-lg border border-cyan-500/40 px-2 py-1 text-cyan-200 hover:bg-cyan-950/40"
           >
             Study DNA
+          </Link>
+          <Link
+            to="/profile"
+            className="flex items-center justify-center w-8 h-8 rounded-full border border-violet-500/40 bg-violet-950/40 text-violet-300 hover:bg-violet-900/60 transition-all font-bold text-sm"
+            title="My Profile"
+          >
+            {user?.displayName?.charAt(0)?.toUpperCase() ?? user?.email?.charAt(0)?.toUpperCase() ?? "P"}
           </Link>
         </div>
       </div>
