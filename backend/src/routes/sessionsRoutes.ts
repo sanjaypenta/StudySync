@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import mongoose from "mongoose";
 import { Todo } from "../models/Todo.js";
 import { StudySession } from "../models/StudySession.js";
@@ -37,6 +37,7 @@ sessionsRouter.get("/active", async (req, res) => {
         todo_ids: doc.todo_ids,
         outcome: doc.outcome,
         session_mood: doc.session_mood ?? null,
+        pauses: doc.pauses ?? [],
       },
     });
   } catch (e) {
@@ -85,6 +86,56 @@ sessionsRouter.post("/start", async (req, res) => {
   }
 });
 
+sessionsRouter.post("/:id/pause", async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      res.status(503).json({ error: "Database not connected" });
+      return;
+    }
+    const doc = await StudySession.findOneAndUpdate(
+      { _id: req.params.id, user_id: req.userId, outcome: "pending" },
+      { $push: { pauses: { started_at: new Date(), ended_at: null } } },
+      { new: true }
+    );
+    if (!doc) {
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to pause session" });
+  }
+});
+
+sessionsRouter.post("/:id/resume", async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      res.status(503).json({ error: "Database not connected" });
+      return;
+    }
+    const doc = await StudySession.findOne({ 
+      _id: req.params.id, 
+      user_id: req.userId, 
+      outcome: "pending" 
+    });
+    if (!doc) {
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    if (doc.pauses && doc.pauses.length > 0) {
+      const lastPause = doc.pauses[doc.pauses.length - 1];
+      if (!lastPause.ended_at) {
+        lastPause.ended_at = new Date();
+        await doc.save();
+      }
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to resume session" });
+  }
+});
 sessionsRouter.patch("/:id/end", async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {

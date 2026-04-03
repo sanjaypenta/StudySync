@@ -12,6 +12,7 @@ export interface IStudySession extends Document {
   outcome: SessionOutcome;
   /** Optional check-in at session start */
   session_mood?: SessionMood | null;
+  pauses: { started_at: Date; ended_at: Date | null }[];
 }
 
 const StudySessionSchema = new Schema<IStudySession>(
@@ -29,6 +30,15 @@ const StudySessionSchema = new Schema<IStudySession>(
       type: String,
       enum: ["tired", "normal", "motivated"],
       required: false,
+    },
+    pauses: {
+      type: [
+        {
+          started_at: { type: Date, required: true },
+          ended_at: { type: Date, default: null },
+        },
+      ],
+      default: [],
     },
   },
   { timestamps: true }

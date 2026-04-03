@@ -50,7 +50,7 @@ export function useFocusBreaks({
 
   useEffect(() => {
     if (!active || mood == null || sessionAnchorMs == null) return;
-    const plan = getBreakPlan(mood, energyPercent);
+    const plan = getBreakPlan(mood, energyPercent, segmentEpoch);
     const elapsedMin = (nowMs - segmentStartMsRef.current) / 60000;
     if (
       elapsedMin >= plan.workMinutesBeforeNudge &&

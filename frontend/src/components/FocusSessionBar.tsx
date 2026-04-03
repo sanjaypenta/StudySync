@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { endStudySession, startStudySession } from "@/lib/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { endStudySession, startStudySession, pauseStudySession, resumeStudySession } from "@/lib/api";
 import { SessionMoodGate } from "@/components/SessionMoodGate";
 import { useRewards } from "@/context/RewardContext";
 import { pushRewardFromApi } from "@/lib/rewardHelpers";
@@ -12,6 +12,7 @@ export function FocusSessionBar() {
   const { refresh, state: hudState } = useHud();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [pauses, setPauses] = useState<{start: number, end: number | null}[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   const [moodGateOpen, setMoodGateOpen] = useState(false);
@@ -30,8 +31,21 @@ export function FocusSessionBar() {
     return () => window.clearInterval(id);
   }, [sessionId, refresh]);
 
-  const elapsedSec =
-    startedAt === null ? 0 : Math.floor((now - startedAt) / 1000);
+  const elapsedSec = useMemo(() => {
+    if (!startedAt) return 0;
+    let activeMs = 0;
+    let lastStart = startedAt;
+    for (const p of pauses) {
+      const pStart = p.start;
+      const pEnd = p.end ? p.end : now;
+      activeMs += Math.max(0, pStart - lastStart);
+      lastStart = pEnd;
+    }
+    activeMs += Math.max(0, now - lastStart);
+    return Math.floor(activeMs / 1000);
+  }, [startedAt, pauses, now]);
+
+  const isPaused = pauses.length > 0 && pauses[pauses.length - 1].end === null;
 
   const energyPercent = hudState?.energyPercent ?? null;
   const effectiveMood: SessionMood | null =
@@ -49,13 +63,41 @@ export function FocusSessionBar() {
   );
 
   const { resetSegment } = useFocusBreaks({
-    active: Boolean(sessionId && startedAt && effectiveMood),
+    active: Boolean(sessionId && startedAt && effectiveMood && !isPaused),
     mood: effectiveMood,
     energyPercent,
     nowMs: now,
     sessionAnchorMs: startedAt,
     onNudge: onBreakNudge,
   });
+
+  async function handlePause() {
+    if (!sessionId) return;
+    try {
+      await pauseStudySession(sessionId);
+      setPauses(prev => [...prev, { start: Date.now(), end: null }]);
+      void refresh(); // Pulls fresh energy that considers the new recovery phase
+    } catch {
+      setError("Failed to pause");
+    }
+  }
+
+  async function handleResume() {
+    if (!sessionId) return;
+    try {
+      await resumeStudySession(sessionId);
+      setPauses(prev => {
+        const copy = [...prev];
+        if (copy.length > 0) {
+          copy[copy.length - 1].end = Date.now();
+        }
+        return copy;
+      });
+      void refresh();
+    } catch {
+      setError("Failed to resume");
+    }
+  }
 
   async function startWithMood(mood: SessionMood) {
     setMoodGateOpen(false);
@@ -65,6 +107,7 @@ export function FocusSessionBar() {
       const s = await startStudySession([], { mood });
       setSessionId(s.id);
       setStartedAt(Date.now());
+      setPauses([]);
       setBreakBanner(null);
     } catch {
       setError("Could not start — is the API and MongoDB running?");
@@ -84,6 +127,7 @@ export function FocusSessionBar() {
       void refresh();
       setSessionId(null);
       setStartedAt(null);
+      setPauses([]);
       setQuickMood(null);
       setBreakBanner(null);
     } catch {
@@ -117,10 +161,27 @@ export function FocusSessionBar() {
           </button>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-sm tabular-nums text-cyan-200">
+            <span className={`font-mono text-sm tabular-nums ${isPaused ? 'text-amber-300' : 'text-cyan-200'}`}>
               {String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:
               {String(elapsedSec % 60).padStart(2, "0")}
             </span>
+            {isPaused ? (
+              <button
+                type="button"
+                onClick={() => void handleResume()}
+                className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white shadow-lg shadow-amber-500/20"
+              >
+                Resume
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void handlePause()}
+                className="rounded-lg border border-amber-500/50 hover:bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-200"
+              >
+                Pause
+              </button>
+            )}
             <button
               type="button"
               onClick={() => void end("completed")}

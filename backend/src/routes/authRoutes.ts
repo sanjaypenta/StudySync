@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { User } from "../models/User.js";
@@ -96,6 +96,42 @@ authRouter.get("/me", authMiddleware, async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Failed" });
+  }
+});
+
+authRouter.post("/forgot-password", async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      res.status(503).json({ error: "Database not connected" });
+      return;
+    }
+    const email = String(req.body?.email ?? "").trim().toLowerCase();
+    const newPassword = String(req.body?.newPassword ?? "");
+
+    if (!email || !newPassword || newPassword.length < 8) {
+      res.status(400).json({ error: "Valid email and password (8+ chars) required" });
+      return;
+    }
+    
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Security: we shouldn't necessarily expose if an email isn't registered,
+      // but for this direct reset flow, returning a generic success is safer, 
+      // or we can just say "If the account exists, the password was updated."
+      res.json({ message: "If an account with that email exists, its password has been updated." });
+      return;
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    // Clear out any old tokens just in case
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ message: "If an account with that email exists, its password has been updated." });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Failed to process password reset" });
   }
 });
 

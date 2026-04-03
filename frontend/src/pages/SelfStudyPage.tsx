@@ -6,6 +6,8 @@ import {
   patchTodo,
   prioritizeTodos,
   startStudySession,
+  pauseStudySession,
+  resumeStudySession,
   type Todo,
 } from "@/lib/api";
 import { SessionMoodGate } from "@/components/SessionMoodGate";
@@ -49,6 +51,7 @@ export function SelfStudyPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [activeTodoId, setActiveTodoId] = useState<string | null>(null);
   const [startedAtMs, setStartedAtMs] = useState<number | null>(null);
+  const [pauses, setPauses] = useState<{start: number, end: number | null}[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const [confirmSwitch, setConfirmSwitch] = useState<string | null>(null);
   const [breakBanner, setBreakBanner] = useState<BreakPlan | null>(null);
@@ -87,6 +90,10 @@ export function SelfStudyPage() {
       setStartedAtMs(new Date(s.started_at).getTime());
       setActiveTodoId(s.todo_ids[0] ?? null);
       setStudyMood(s.session_mood ?? "normal");
+      setPauses((s.pauses || []).map(p => ({
+        start: new Date(p.started_at).getTime(),
+        end: p.ended_at ? new Date(p.ended_at).getTime() : null,
+      })));
     })();
     return () => {
       cancelled = true;
@@ -105,8 +112,21 @@ export function SelfStudyPage() {
     return () => window.clearInterval(id);
   }, [sessionId, refresh]);
 
-  const elapsed =
-    sessionId && startedAtMs ? Math.max(0, now - startedAtMs) : 0;
+  const elapsed = useMemo(() => {
+    if (!sessionId || !startedAtMs) return 0;
+    let activeMs = 0;
+    let lastStart = startedAtMs;
+    for (const p of pauses) {
+      const pStart = p.start;
+      const pEnd = p.end ? p.end : now;
+      activeMs += Math.max(0, pStart - lastStart);
+      lastStart = pEnd;
+    }
+    activeMs += Math.max(0, now - lastStart);
+    return activeMs;
+  }, [sessionId, startedAtMs, pauses, now]);
+
+  const isPaused = pauses.length > 0 && pauses[pauses.length - 1].end === null;
 
   const energyPercent = hudState?.energyPercent ?? null;
   const effectiveMood: SessionMood | null =
@@ -124,7 +144,7 @@ export function SelfStudyPage() {
   );
 
   const { resetSegment } = useFocusBreaks({
-    active: Boolean(sessionId && startedAtMs && effectiveMood),
+    active: Boolean(sessionId && startedAtMs && effectiveMood && !isPaused),
     mood: effectiveMood,
     energyPercent,
     nowMs: now,
@@ -163,9 +183,38 @@ export function SelfStudyPage() {
       setSessionId(s.id);
       setStartedAtMs(Date.now());
       setActiveTodoId(todoId);
+      setPauses([]);
       setBreakBanner(null);
     } catch {
       setErr("Could not start focus session.");
+    }
+  }
+
+  async function handlePause() {
+    if (!sessionId) return;
+    try {
+      await pauseStudySession(sessionId);
+      setPauses(prev => [...prev, { start: Date.now(), end: null }]);
+      void refresh(); 
+    } catch {
+      setErr("Failed to pause session.");
+    }
+  }
+
+  async function handleResume() {
+    if (!sessionId) return;
+    try {
+      await resumeStudySession(sessionId);
+      setPauses(prev => {
+        const copy = [...prev];
+        if (copy.length > 0) {
+          copy[copy.length - 1].end = Date.now();
+        }
+        return copy;
+      });
+      void refresh();
+    } catch {
+      setErr("Failed to resume session.");
     }
   }
 
@@ -186,6 +235,7 @@ export function SelfStudyPage() {
       setSessionId(s.id);
       setStartedAtMs(Date.now());
       setActiveTodoId(next);
+      setPauses([]);
       setBreakBanner(null);
       void refresh();
     } catch {
@@ -220,6 +270,7 @@ export function SelfStudyPage() {
       setSessionId(null);
       setStartedAtMs(null);
       setActiveTodoId(null);
+      setPauses([]);
       setBreakBanner(null);
       void load({ skipPrioritize: true });
     }
@@ -340,7 +391,7 @@ export function SelfStudyPage() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {isActive ? (
-                  <span className="font-mono text-lg text-cyan-200 tabular-nums">
+                  <span className={`font-mono text-lg tabular-nums ${isPaused ? 'text-amber-300' : 'text-cyan-200'}`}>
                     {formatElapsed(elapsed)}
                   </span>
                 ) : null}
@@ -354,6 +405,23 @@ export function SelfStudyPage() {
                   </button>
                 ) : (
                   <>
+                    {isPaused ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleResume()}
+                        className="rounded-xl bg-amber-600 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-amber-500/20"
+                      >
+                        Resume
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void handlePause()}
+                        className="rounded-xl border border-amber-500/50 hover:bg-amber-950/40 px-3 py-2 text-xs font-semibold text-amber-200"
+                      >
+                        Pause
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white"

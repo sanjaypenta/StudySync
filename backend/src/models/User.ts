@@ -1,9 +1,11 @@
-﻿import mongoose, { Schema, type Document } from "mongoose";
+import mongoose, { Schema, type Document } from "mongoose";
 
 export interface IUser extends Document {
   email: string;
   passwordHash: string;
   displayName: string;
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -18,6 +20,8 @@ const UserSchema = new Schema<IUser>(
     },
     passwordHash: { type: String, required: true },
     displayName: { type: String, default: "" },
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date },
   },
   { timestamps: true }
 );

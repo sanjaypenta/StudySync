@@ -9,6 +9,16 @@ export function authHeaders(): HeadersInit {
   return h;
 }
 
+export async function forgotPassword(email: string, newPassword: string): Promise<{ message: string }> {
+  const res = await fetch("/api/auth/forgot-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, newPassword }),
+  });
+  if (!res.ok) throw new Error("Failed to request password reset");
+  return res.json();
+}
+
 
 export type DayBlockDto = {
   type: "wake" | "class" | "meal" | "free" | "sleep" | "other";
@@ -467,6 +477,22 @@ export async function endStudySession(
   return { reward: data.reward, burnoutTip: data.burnoutTip };
 }
 
+export async function pauseStudySession(id: string): Promise<void> {
+  const res = await fetch(`/api/sessions/${id}/pause`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Could not pause session");
+}
+
+export async function resumeStudySession(id: string): Promise<void> {
+  const res = await fetch(`/api/sessions/${id}/resume`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Could not resume session");
+}
+
 
 
 export async function fetchActiveSession(): Promise<{
@@ -474,6 +500,7 @@ export async function fetchActiveSession(): Promise<{
   started_at: string;
   todo_ids: string[];
   session_mood: SessionMood | null;
+  pauses: { started_at: string; ended_at: string | null }[];
 } | null> {
   const res = await fetch("/api/sessions/active", { headers: authHeaders() });
   if (!res.ok) return null;
@@ -483,6 +510,7 @@ export async function fetchActiveSession(): Promise<{
       started_at: string;
       todo_ids: string[];
       session_mood: SessionMood | null;
+      pauses: { started_at: string; ended_at: string | null }[];
     } | null;
   };
   return data.session;
@@ -514,6 +542,19 @@ export type ProgressSummary = {
   };
   learnerSummary: string;
   lastBurnoutTip: string;
+  dna?: {
+    insights: {
+      bestTime: string;
+      avgFocus: number;
+      weakSubject: string;
+      burnoutPattern: string;
+    };
+    radar: {
+      subject: string;
+      A: number;
+      fullMark: number;
+    }[];
+  };
 };
 
 export async function fetchProgressSummary(): Promise<ProgressSummary | null> {

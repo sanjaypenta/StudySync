@@ -64,8 +64,8 @@ export function LoginPage() {
             Register
           </Link>
         </p>
-        <p className="mt-4 text-center text-[10px] text-zinc-500">
-          Forgot password? Contact your admin — reset coming in a later version.
+        <p className="mt-4 text-center text-[10px] text-zinc-500 hover:text-zinc-400">
+          <Link to="/forgot-password">Forgot password? Reset it here.</Link>
         </p>
       </div>
     </div>

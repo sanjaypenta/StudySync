@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchProgressSummary, type ProgressSummary } from "@/lib/api";
+import { StudyDNA } from "@/components/StudyDNA";
 
 export function ProgressPage() {
   const [data, setData] = useState<ProgressSummary | null | "err">(null);
@@ -59,6 +60,10 @@ export function ProgressPage() {
           <p className="mt-2 text-3xl font-bold text-cyan-100">{data.focusMinutesTotal}</p>
         </div>
       </div>
+
+      {data.dna ? (
+        <StudyDNA dna={data.dna} />
+      ) : null}
 
       {data.learnerSummary ? (
         <div className="rounded-2xl border border-violet-500/20 bg-violet-950/20 p-5">

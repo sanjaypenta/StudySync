@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import mongoose from "mongoose";
 import { Todo } from "../models/Todo.js";
 import { StudySession } from "../models/StudySession.js";
@@ -40,34 +40,59 @@ wellbeingRouter.post("/recalculate", async (req, res) => {
     });
     const nowMs = Date.now();
     let sessionMinutes = 0;
+    let activeDrain = 0;
+    
     for (const s of sessions) {
       if (!s.started_at) continue;
-      const start = s.started_at.getTime();
-      const end =
-        s.ended_at != null
-          ? s.ended_at.getTime()
-          : Math.min(nowMs, dayEnd);
-      if (end > start) {
-        sessionMinutes += (end - start) / 60000;
+      let activeMins = 0;
+      let restMins = 0;
+      let lastStart = s.started_at.getTime();
+      const sessionEndMs = s.ended_at ? s.ended_at.getTime() : Math.min(nowMs, dayEnd);
+      
+      const pauses = s.pauses || [];
+      for (const p of pauses) {
+         if (!p.started_at) continue;
+         const pStart = p.started_at.getTime();
+         const pEnd = p.ended_at ? p.ended_at.getTime() : sessionEndMs;
+         if (pStart <= sessionEndMs) {
+           activeMins += Math.max(0, (pStart - lastStart) / 60000);
+           const clampedPEnd = Math.min(pEnd, sessionEndMs);
+           restMins += Math.max(0, (clampedPEnd - pStart) / 60000);
+           lastStart = clampedPEnd;
+         }
       }
+      if (lastStart < sessionEndMs) {
+        activeMins += Math.max(0, (sessionEndMs - lastStart) / 60000);
+      }
+
+      sessionMinutes += activeMins;
+      
+      let rate = 0.5; // Normal
+      if (s.session_mood === "tired") rate = 1.0;
+      else if (s.session_mood === "motivated") rate = 0.25;
+      
+      const drain = activeMins * rate;
+      const recover = restMins * 0.5;
+      
+      // we reduce activeDrain by the recover amount. In burnoutScore, energy -= activeDrain.
+      // So lowering activeDrain gives the user their energy back!
+      activeDrain += (drain - recover);
     }
     const plannedMinutes = todos.reduce((a, t) => a + t.hours * 60, 0);
     const sessionRatio =
       plannedMinutes <= 0 ? 0.6 : Math.min(1, sessionMinutes / plannedMinutes);
 
     const profile = await UserProfileModel.findOne({ user_id: userId });
-    const screenTotal =
-      (profile?.screenTimeMobileHours ?? 0) +
-      (profile?.screenTimeLaptopHours ?? 0);
-    const screenStress =
-      screenTotal > 12 ? Math.min(1, (screenTotal - 8) / 16) : 0;
 
     const raw = computeBurnoutScore({
-      completionRate,
-      sessionRatio,
-      screenStress,
+      activeDrain,
+      completedTasks: completed,
     });
+    
+    // adjustWellnessScore will subtract points for poor profile stressors
+    // Since energy is max 100, subtracting stress points lowers daily ceiling.
     const score = adjustWellnessScore(raw.score, profile);
+    
     let state = raw.state;
     if (score < 45) state = "red";
     else if (score < 70) state = "yellow";

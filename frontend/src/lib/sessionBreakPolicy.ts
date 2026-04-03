@@ -10,14 +10,14 @@ export type BreakPlan = {
   energyLine: string;
 };
 
-function baseWorkMinutes(mood: SessionMood): number {
+function baseWorkMinutes(mood: SessionMood, segmentEpoch: number): number {
   switch (mood) {
     case "tired":
-      return 15;
+      return [15, 30][segmentEpoch] ?? 30;
     case "normal":
-      return 25;
+      return [25, 45, 60, 90][segmentEpoch] ?? 90;
     case "motivated":
-      return 35;
+      return [25, 45, 60, 90][segmentEpoch] ?? 90;
   }
 }
 
@@ -26,18 +26,19 @@ function baseWorkMinutes(mood: SessionMood): number {
  */
 export function getBreakPlan(
   mood: SessionMood,
-  energyPercent: number | null
+  energyPercent: number | null,
+  segmentEpoch: number
 ): BreakPlan {
   const e =
     energyPercent != null && Number.isFinite(energyPercent)
       ? Math.max(0, Math.min(100, energyPercent))
       : 50;
 
-  let work = baseWorkMinutes(mood);
+  let work = baseWorkMinutes(mood, segmentEpoch);
   let mandatory: number | null = null;
 
   if (e > 70) {
-    work = Math.round(work * 1.4);
+    work = Math.round(work * 1.2);
   } else if (e < 40) {
     work = Math.round(work * 0.65);
     mandatory = 5;
@@ -45,7 +46,17 @@ export function getBreakPlan(
 
   work = Math.max(5, Math.min(90, work));
 
-  const breakSuggestionMinutes = e < 40 ? 8 : e > 70 ? 3 : 5;
+  // Determine break length based on flow phase
+  let breakSuggestionMinutes = 5;
+  if (mood === "tired") {
+    breakSuggestionMinutes = [5, 10][segmentEpoch] ?? 10;
+  } else {
+    breakSuggestionMinutes = [5, 10, 15, 20][segmentEpoch] ?? 20;
+  }
+  
+  if (e < 40) {
+    breakSuggestionMinutes = Math.max(breakSuggestionMinutes, 8);
+  }
 
   let headline = "Recovery phase";
   let body =
