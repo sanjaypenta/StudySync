@@ -5,7 +5,8 @@ import { createServer } from "http";
 import cors from "cors";
 
 const backendRoot = dirname(fileURLToPath(import.meta.url));
-loadEnv({ path: join(backendRoot, "../.env"), override: true });
+// Allow real environment variables (e.g., from hosting or CI) to take precedence over backend/.env.
+loadEnv({ path: join(backendRoot, "../.env"), override: false });
 import express from "express";
 import mongoose from "mongoose";
 import { Server } from "socket.io";

@@ -4,7 +4,10 @@ import {
   addUser,
   clearAllUserTimers,
   clearUserTimer,
+  deletePersistedRoom,
+  deleteRoom,
   getRoom,
+  getOrLoadRoom,
   removeUserBySocket,
   type RoomState,
 } from "./roomStore.js";
@@ -28,7 +31,7 @@ export function registerStudyRoomSockets(io: Server): void {
   io.on("connection", (socket: Socket) => {
     socket.on(
       "join_room",
-      (payload: {
+      async (payload: {
         roomId?: string;
         username?: string;
         hostKey?: string;
@@ -41,9 +44,24 @@ export function registerStudyRoomSockets(io: Server): void {
           socket.emit("study_error", { message: "roomId and username required" });
           return;
         }
-        const room = getRoom(roomId);
+
+        console.log(
+          `[study-room] join_room roomId=${roomId} user=${JSON.stringify(username)} socket=${socket.id} ip=${socket.handshake.address}`
+        );
+
+        const inMem = getRoom(roomId);
+        if (inMem) {
+          console.log(`[study-room] roomId=${roomId} found in memory`);
+        }
+        const room = await getOrLoadRoom(roomId);
         if (!room) {
-          socket.emit("study_error", { message: "Room not found" });
+          console.warn(
+            `[study-room] roomId=${roomId} NOT FOUND (memory miss, DB miss) ip=${socket.handshake.address}`
+          );
+          socket.emit("study_error", {
+            message:
+              "Room not found. The host may need to recreate it, or you may be connected to the wrong server.",
+          });
           return;
         }
         if (room.phase !== "lobby") {
@@ -90,9 +108,12 @@ export function registerStudyRoomSockets(io: Server): void {
         socket.emit("study_error", { message: "roomId required" });
         return;
       }
-      const room = getRoom(roomId);
+      const room = await getOrLoadRoom(roomId);
       if (!room) {
-        socket.emit("study_error", { message: "Room not found" });
+        socket.emit("study_error", {
+          message:
+            "Room not found. The host may need to recreate it, or the server restarted.",
+        });
         return;
       }
       const uid = room.socketToUserId.get(socket.id);
@@ -145,7 +166,7 @@ export function registerStudyRoomSockets(io: Server): void {
 
     socket.on(
       "submit_answer",
-      (payload: {
+      async (payload: {
         roomId?: string;
         questionIndex?: number;
         answer?: string;
@@ -159,7 +180,7 @@ export function registerStudyRoomSockets(io: Server): void {
         if (!roomId || typeof qIdx !== "number") {
           return;
         }
-        const room = getRoom(roomId);
+        const room = await getOrLoadRoom(roomId);
         if (!room || room.phase !== "quiz") return;
 
         const uid = room.socketToUserId.get(socket.id);
@@ -175,13 +196,28 @@ export function registerStudyRoomSockets(io: Server): void {
     socket.on("disconnect", () => {
       const roomId = socket.data.studyRoomId as string | undefined;
       if (!roomId) return;
+      // Avoid async in disconnect.
       const room = getRoom(roomId);
       if (!room) return;
       const uid = room.socketToUserId.get(socket.id);
+      const leavingUser = uid ? room.users.get(uid) : undefined;
       if (uid && room.phase === "quiz") {
         clearUserTimer(room, uid);
       }
       removeUserBySocket(room, socket.id);
+
+      // If the host leaves, close the room entirely (invalidate invite code).
+      if (leavingUser?.isHost) {
+        io.to(roomId).emit("study_error", {
+          message: "Host left — this room is now closed.",
+        });
+        // Disconnect everyone still in the room.
+        io.in(roomId).disconnectSockets(true);
+        deleteRoom(roomId);
+        void deletePersistedRoom(roomId);
+        return;
+      }
+
       if (room.phase === "lobby") emitLobby(io, room);
       if (room.phase === "quiz") {
         void maybeFinishQuiz(io, room);

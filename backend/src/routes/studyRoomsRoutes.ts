@@ -5,6 +5,8 @@ import {
   createHostKey,
   createRoom,
   generateRoomId,
+  persistRoom,
+  getOrLoadRoom,
 } from "../studyRoom/roomStore.js";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -25,6 +27,22 @@ const upload = multer({
 });
 
 export const studyRoomsRouter = Router();
+
+studyRoomsRouter.get("/:roomId", async (req, res) => {
+  const roomId = String(req.params.roomId ?? "")
+    .replace(/\D/g, "")
+    .slice(0, 6);
+  if (!roomId || roomId.length !== 6) {
+    res.status(400).json({ error: "Invalid roomId" });
+    return;
+  }
+  const room = await getOrLoadRoom(roomId);
+  if (!room) {
+    res.status(404).json({ error: "Room not found" });
+    return;
+  }
+  res.json({ roomId: room.roomId, phase: room.phase });
+});
 
 function parseQuestionsCount(v: unknown): number | null {
   if (typeof v === "number" && Number.isFinite(v)) return Math.floor(v);
@@ -83,13 +101,18 @@ studyRoomsRouter.post(
 
       const roomId = generateRoomId();
       const hostKey = createHostKey();
-      createRoom({
+      const room = createRoom({
         roomId,
         hostKey,
         topic,
         fileText,
         questionsCount: qn,
       });
+
+      console.log(`[study-room] created roomId=${roomId} questions=${qn}`);
+
+      // Best-effort: keep invite code valid across backend restarts.
+      void persistRoom(room);
 
       res.status(201).json({ roomId, hostKey });
     } catch (e) {

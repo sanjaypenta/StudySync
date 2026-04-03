@@ -6,8 +6,9 @@ export function StudyRoomJoinPage() {
   const [code, setCode] = useState("");
   const [username, setUsername] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     const trimmed = code.replace(/\D/g, "").slice(0, 6);
@@ -20,7 +21,29 @@ export function StudyRoomJoinPage() {
       setError("Enter your name.");
       return;
     }
-    navigate(`/study-room/${trimmed}`, { state: { username: name } });
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/study-rooms/${trimmed}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          setError(
+            "Room not found. Ask the host to recreate the room, and make sure you opened the host's app link (not your own localhost)."
+          );
+          return;
+        }
+        setError(`Could not validate room (HTTP ${res.status}).`);
+        return;
+      }
+
+      navigate(`/study-room/${trimmed}`, { state: { username: name } });
+    } catch {
+      setError(
+        "Network error while checking the room. Make sure you're connected to the host's app link and the backend is running."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -162,6 +185,7 @@ export function StudyRoomJoinPage() {
             {/* Submit */}
             <button
               type="submit"
+              disabled={loading}
               style={{
                 width: "100%", padding: "0.9rem",
                 background: "linear-gradient(135deg, #7c3aed, #6366f1)",
@@ -170,11 +194,12 @@ export function StudyRoomJoinPage() {
                 cursor: "pointer", letterSpacing: "0.02em",
                 boxShadow: "0 4px 20px rgba(124,58,237,0.4)",
                 transition: "opacity 0.2s",
+                opacity: loading ? 0.75 : 1,
               }}
               onMouseEnter={e => { e.currentTarget.style.opacity = "0.9"; }}
               onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
             >
-              🚪 Join Room
+              {loading ? "Checking…" : "🚪 Join Room"}
             </button>
           </form>
         </div>

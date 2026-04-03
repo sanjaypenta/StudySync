@@ -76,3 +76,26 @@ Vite proxies `/api/*` to **http://localhost:4000**. If nothing is listening ther
 4. Use **Day** on a cell to view/edit tasks for that date
 
 Identity is mocked: a `userId` is stored in `localStorage` and sent as `x-user-id`.
+
+## Group study rooms (invite code)
+
+Study rooms are created via `POST /api/study-rooms` and joined via Socket.IO.
+
+- A room code only works if both people are connected to the **same backend instance**.
+- If your friend opens the app on their own computer at `http://localhost:5173`, that `localhost` refers to **their** machine, not yours.
+
+**Join from another device on the same Wi‑Fi/LAN (dev):**
+
+1. Start the app from the repo root: `npm run dev`
+2. Start Vite with LAN access (choose one):
+   - Run frontend with host: `npm run dev -w frontend -- --host`
+   - Or set `server.host` in `frontend/vite.config.ts`
+3. On your friend’s device, open: `http://<YOUR-LAN-IP>:5173` (or whatever port Vite prints)
+4. Join the room from that page.
+
+**Debugging “Room not found”:**
+
+- Confirm API health: `http://<YOUR-LAN-IP>:4000/health`
+- Confirm room exists on the backend: `GET /api/study-rooms/:roomId`
+
+Rooms are persisted to MongoDB with a ~24h TTL so codes can survive backend restarts during development.

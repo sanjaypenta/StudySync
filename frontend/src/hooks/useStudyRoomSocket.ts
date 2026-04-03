@@ -66,15 +66,7 @@ export function useStudyRoomSocket(
       | undefined;
     if (typeof fromEnv === "string" && fromEnv.trim()) return fromEnv.trim();
 
-    // In dev, prefer hitting the backend directly (avoids flaky WS proxy issues,
-    // and allows joining from another device on the LAN when using host IP).
-    if ((import.meta as any).env?.DEV && typeof window !== "undefined") {
-      const proto = window.location.protocol;
-      const host = window.location.hostname;
-      return `${proto}//${host}:4000`;
-    }
-
-    // In prod (or unknown env), default to same-origin.
+    // Default: same-origin (dev uses Vite proxy for /socket.io, prod uses same host).
     return undefined;
   })();
 
@@ -83,7 +75,8 @@ export function useStudyRoomSocket(
 
     const socket = io(socketBaseUrl, {
       path: "/socket.io",
-      transports: ["websocket", "polling"],
+      // Polling-first avoids noisy WS upgrade failures when a network blocks websockets.
+      transports: ["polling", "websocket"],
       withCredentials: true,
     });
     socketRef.current = socket;
@@ -101,10 +94,12 @@ export function useStudyRoomSocket(
     socket.on("connect", onConnect);
     socket.on("disconnect", () => setConnected(false));
 
-    socket.on("connect_error", () => {
+    socket.on("connect_error", (e) => {
       setConnected(false);
       setError(
-        "Could not connect to the study server. Make sure the backend is running and reachable."
+        e?.message
+          ? `Could not connect to the study server: ${e.message}`
+          : "Could not connect to the study server. Make sure the backend is running and reachable."
       );
     });
 

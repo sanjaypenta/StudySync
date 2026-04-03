@@ -5,8 +5,15 @@ import type {
   MCQ,
   StudyUser,
 } from "./types.js";
+import { StudyRoomModel } from "../models/StudyRoomDoc.js";
 
 const rooms = new Map<string, RoomState>();
+
+const ROOM_TTL_HOURS = 24;
+
+function computeExpiry(): Date {
+  return new Date(Date.now() + ROOM_TTL_HOURS * 60 * 60 * 1000);
+}
 
 export interface RoomState {
   roomId: string;
@@ -55,6 +62,62 @@ export function createHostKey(): string {
 
 export function getRoom(roomId: string): RoomState | undefined {
   return rooms.get(roomId);
+}
+
+/** Best-effort persistence so invite codes survive backend restarts (dev hot reload). */
+export async function persistRoom(room: Pick<
+  RoomState,
+  "roomId" | "hostKey" | "topic" | "fileText" | "questionsCount"
+>): Promise<void> {
+  try {
+    await StudyRoomModel.updateOne(
+      { roomId: room.roomId },
+      {
+        $set: {
+          hostKey: room.hostKey,
+          topic: room.topic,
+          fileText: room.fileText,
+          questionsCount: room.questionsCount,
+          expiresAt: computeExpiry(),
+        },
+      },
+      { upsert: true }
+    );
+  } catch {
+    // Ignore persistence failures: the app can still function in-memory.
+  }
+}
+
+/**
+ * Get room from memory; if missing, attempt to rehydrate from Mongo.
+ * This prevents "Room not found" after backend restarts.
+ */
+export async function getOrLoadRoom(roomId: string): Promise<RoomState | undefined> {
+  const existing = rooms.get(roomId);
+  if (existing) return existing;
+
+  try {
+    const doc = await StudyRoomModel.findOne({ roomId }).lean();
+    if (!doc) return undefined;
+    const state = createRoom({
+      roomId: doc.roomId,
+      hostKey: doc.hostKey,
+      topic: doc.topic ?? "",
+      fileText: doc.fileText ?? "",
+      questionsCount: doc.questionsCount,
+    });
+    return state;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function deletePersistedRoom(roomId: string): Promise<void> {
+  try {
+    await StudyRoomModel.deleteOne({ roomId });
+  } catch {
+    // ignore
+  }
 }
 
 export function createRoom(params: {
